@@ -26,6 +26,7 @@ import {
   LineChart,
   ListFilter,
   Plus,
+  ReceiptText
   ReceiptIndianRupee,
   RefreshCcw,
   Scale,
@@ -145,6 +146,13 @@ const financeModules = [
     icon: Banknote,
   },
   {
+  title: "Accounts Payable",
+  description:
+    "Vendor invoices, approvals, payment scheduling and accounts payable management.",
+  href: "/finance/accounts-payable",
+  icon: ReceiptText,
+},
+  {
   title: "Treasury & Liquidity",
   description:
     "Corporate treasury, liquidity, cash positioning, fund transfers and financial forecasting",
@@ -158,6 +166,7 @@ const financeModules = [
   href: "/finance/cost-centers",
   icon: Building2,
 },
+
   {
     title: "Bank Reconciliation",
     description: "Match bank statements with internal transactions",
