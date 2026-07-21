@@ -26,7 +26,7 @@ import {
   LineChart,
   ListFilter,
   Plus,
-  ReceiptText
+  ReceiptText,
   ReceiptIndianRupee,
   RefreshCcw,
   Scale,
