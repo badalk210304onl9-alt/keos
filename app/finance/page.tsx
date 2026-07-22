@@ -200,11 +200,11 @@ const financeModules = [
   icon: CircleDollarSign,
 },
   {
-    title: "Financial Planning",
-    description: "Forecasts, targets, scenarios and growth planning",
-    href: "/finance/planning",
-    icon: LineChart,
-  },
+  title: "Financial Planning",
+  description: "Forecasts, targets, scenarios and growth planning",
+  href: "/finance/financial-planning",
+  icon: LineChart,
+},
   {
     title: "Payroll Approval",
     description: "Review salary inputs and approve monthly payroll",
