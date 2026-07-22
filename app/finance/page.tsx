@@ -28,6 +28,7 @@ import {
   LineChart,
   ListFilter,
   Plus,
+  Receipt,
   ReceiptText,
   ReceiptIndianRupee,
   RefreshCcw,
@@ -202,27 +203,29 @@ const financeModules = [
   {
   title: "Financial Planning",
   description: "Forecasts, targets, scenarios and growth planning",
-  href: "/finance/planning",
+  href: "/finance/financial-planning",
   icon: LineChart,
 },
   {
-    title: "Payroll Approval",
-    description: "Review salary inputs and approve monthly payroll",
-    href: "/finance/payroll-approval",
-    icon: WalletCards,
-  },
-  {
-    title: "Employee Reimbursements",
-    description: "Travel, business and employee expense reimbursements",
-    href: "/finance/reimbursements",
-    icon: ReceiptIndianRupee,
-  },
-  {
-    title: "GST Center",
-    description: "GST collections, input credits, returns and reports",
-    href: "/finance/gst",
-    icon: FileCheck2,
-  },
+  title: "Payroll Approval",
+  description: "Review salary inputs and approve monthly payroll",
+  href: "/finance/payroll-approval",
+  icon: WalletCards,
+},
+
+{
+  title: "Employee Reimbursements",
+  description: "Travel, business and employee expense reimbursements",
+  href: "/finance/reimbursements",
+  icon: Receipt,
+},
+
+{
+  title: "GST Center",
+  description: "GST collections, input credits, returns and reports",
+  href: "/finance/gst-center",
+  icon: FileCheck2,
+},
   {
     title: "TDS Management",
     description: "TDS deductions, certificates and filing records",
