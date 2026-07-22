@@ -176,11 +176,11 @@ const financeModules = [
     icon: BookOpenCheck,
   },
   {
-    title: "Cash Management",
-    description: "Petty cash, cash registers and branch cash control",
-    href: "/finance/cash",
-    icon: Coins,
-  },
+  title: "Cash Management",
+  description: "Petty cash, cash registers and branch cash control",
+  href: "/finance/cash-management",
+  icon: CircleDollarSign,
+},
   {
     title: "Cash Flow",
     description: "Operating, investing and financing cash movement",
