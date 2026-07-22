@@ -194,11 +194,11 @@ const financeModules = [
     icon: Scale,
   },
   {
-    title: "Budget Allocation",
-    description: "Allocate and monitor departmental financial limits",
-    href: "/finance/budget-allocation",
-    icon: CircleDollarSign,
-  },
+  title: "Budget Allocation",
+  description: "Allocate and monitor departmental financial limits",
+  href: "/finance/budget-allocation",
+  icon: CircleDollarSign,
+},
   {
     title: "Financial Planning",
     description: "Forecasts, targets, scenarios and growth planning",
