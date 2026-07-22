@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
+import CreateInvoiceDrawer from "./components/create-invoice-drawer";
 import {
   Activity,
   AlertTriangle,
@@ -482,6 +484,9 @@ const revenueBars = [
 ];
 
 export default function FinancePage() {
+  const [activeQuickAction, setActiveQuickAction] = useState<
+    "invoice" | null
+  >(null);
   return (
     <div className="min-h-full w-full overflow-x-hidden">
       <section className="border-b border-slate-200 bg-white">
@@ -1098,7 +1103,12 @@ export default function FinancePage() {
             <span>Last synchronized just now</span>
           </div>
         </footer>
-      </div>
+            </div>
+
+      <CreateInvoiceDrawer
+        open={activeQuickAction === "invoice"}
+        onClose={() => setActiveQuickAction(null)}
+      />
     </div>
   );
 }

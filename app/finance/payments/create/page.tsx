@@ -1,1056 +1,467 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
 import {
-  AlertTriangle,
+  AlertCircle,
   ArrowLeft,
-  BadgeCheck,
-  Banknote,
   Building2,
   CalendarDays,
+  Check,
   CheckCircle2,
-  ChevronRight,
-  CircleDollarSign,
-  CreditCard,
+  Copy,
+  FileDown,
   FileText,
   Hash,
-  IndianRupee,
-  Landmark,
-  Mail,
-  ReceiptText,
+  Loader2,
+  Paperclip,
+  Plus,
   Save,
+  Scale,
   Send,
-  ShieldCheck,
-  Sparkles,
-  UserRound,
-  WalletCards,
-  X,
+  Trash2,
+  Upload,
 } from "lucide-react";
+import {
+  ChangeEvent,
+  useMemo,
+  useState,
+} from "react";
 
-type PaymentStatus = "Draft" | "Recorded" | "Pending Reconciliation";
+type AccountType =
+  | "Asset"
+  | "Liability"
+  | "Equity"
+  | "Revenue"
+  | "Expense";
 
-type PaymentForm = {
-  paymentType: "Incoming" | "Outgoing";
-  partyType: "Customer" | "Vendor" | "Employee" | "Other";
-  partyName: string;
-  referenceType: string;
-  referenceNumber: string;
-  paymentDate: string;
-  paymentMethod: string;
-  bankAccount: string;
-  transactionReference: string;
+type JournalStatus =
+  | "Draft"
+  | "Submitted"
+  | "Posted";
+
+type JournalLine = {
+  id: string;
+  accountCode: string;
+  accountName: string;
+  accountType: AccountType | "";
+  description: string;
+  debit: string;
+  credit: string;
+  department: string;
+  costCenter: string;
+  project: string;
+  taxCode: string;
+};
+
+type AttachmentItem = {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+};
+
+type NotificationState = {
+  type: "success" | "warning" | "error";
+  title: string;
+  message: string;
+} | null;
+
+type JournalForm = {
+  journalNumber: string;
+  entryDate: string;
+  postingDate: string;
+  entryType: string;
+  reference: string;
+  company: string;
+  branch: string;
+  fiscalPeriod: string;
   currency: string;
-  amount: number;
-  bankCharges: number;
-  tdsAmount: number;
-  adjustmentAmount: number;
-  email: string;
+  exchangeRate: string;
   narration: string;
   internalNotes: string;
+  approvalRequired: boolean;
+  recurringJournal: boolean;
+  recurringFrequency: string;
+  status: JournalStatus;
 };
 
-const initialForm: PaymentForm = {
-  paymentType: "Outgoing",
-  partyType: "Vendor",
-  partyName: "",
-  referenceType: "Vendor Invoice",
-  referenceNumber: "",
-  paymentDate: new Date().toISOString().split("T")[0],
-  paymentMethod: "Bank Transfer",
-  bankAccount: "HDFC Bank •••• 4821",
-  transactionReference: "",
-  currency: "INR",
-  amount: 0,
-  bankCharges: 0,
-  tdsAmount: 0,
-  adjustmentAmount: 0,
-  email: "",
-  narration: "",
-  internalNotes: "",
+type JournalAccount = {
+  code: string;
+  name: string;
+  type: AccountType;
 };
 
-const partyOptions = {
-  Customer: [
-    "Aarav Fashion House",
-    "Maison Luxe Retail",
-    "Urban Style Private Limited",
-    "Royal Wardrobe",
-  ],
-  Vendor: [
-    "Premium Textiles Private Limited",
-    "Elite Packaging Solutions",
-    "Urban Logistics India",
-    "Apex Cloud Systems",
-  ],
-  Employee: [
-    "Badal Kumar",
-    "Riya Kapoor",
-    "Arjun Mehta",
-    "Neha Sharma",
-  ],
-  Other: ["Government Department", "Consultant", "Service Provider"],
-};
+const accounts: JournalAccount[] = [
+  {
+    code: "110101",
+    name: "HDFC Bank Current Account",
+    type: "Asset",
+  },
+  {
+    code: "110102",
+    name: "ICICI Bank Current Account",
+    type: "Asset",
+  },
+  {
+    code: "120101",
+    name: "Trade Receivables",
+    type: "Asset",
+  },
+  {
+    code: "130101",
+    name: "Inventory – Finished Goods",
+    type: "Asset",
+  },
+  {
+    code: "140101",
+    name: "Input GST Receivable",
+    type: "Asset",
+  },
+  {
+    code: "150101",
+    name: "Office Equipment",
+    type: "Asset",
+  },
+  {
+    code: "210101",
+    name: "Trade Payables",
+    type: "Liability",
+  },
+  {
+    code: "220101",
+    name: "Salary Payable",
+    type: "Liability",
+  },
+  {
+    code: "230101",
+    name: "Output GST Payable",
+    type: "Liability",
+  },
+  {
+    code: "310101",
+    name: "Founder Capital",
+    type: "Equity",
+  },
+  {
+    code: "410101",
+    name: "Product Sales Revenue",
+    type: "Revenue",
+  },
+  {
+    code: "410201",
+    name: "Service Revenue",
+    type: "Revenue",
+  },
+  {
+    code: "510101",
+    name: "Cost of Goods Sold",
+    type: "Expense",
+  },
+  {
+    code: "510201",
+    name: "Advertising and Marketing",
+    type: "Expense",
+  },
+  {
+    code: "510301",
+    name: "Technology and Software",
+    type: "Expense",
+  },
+  {
+    code: "510401",
+    name: "Rent and Administration",
+    type: "Expense",
+  },
+  {
+    code: "510501",
+    name: "Logistics and Freight",
+    type: "Expense",
+  },
+  {
+    code: "520101",
+    name: "Employee Cost",
+    type: "Expense",
+  },
+];
 
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 2,
-  }).format(value);
+const departments = [
+  "Finance",
+  "Sales",
+  "Marketing",
+  "Operations",
+  "Technology",
+  "Human Resources",
+  "Administration",
+  "Procurement",
+  "Logistics",
+];
 
-export default function RecordPaymentPage() {
-  const [form, setForm] = useState<PaymentForm>(initialForm);
-  const [status, setStatus] = useState<PaymentStatus>("Draft");
-  const [savedDraft, setSavedDraft] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+const costCenters = [
+  "CC-FINANCE",
+  "CC-SALES",
+  "CC-MARKETING",
+  "CC-OPERATIONS",
+  "CC-TECHNOLOGY",
+  "CC-HR",
+  "CC-ADMIN",
+  "CC-PROCUREMENT",
+  "CC-LOGISTICS",
+  "CC-E-COMMERCE",
+  "CC-TAXATION",
+];
 
-  const paymentNumber = useMemo(
-    () =>
-      `PAY-${new Date().getFullYear()}-${String(
-        Math.floor(Math.random() * 99999) + 1,
-      ).padStart(5, "0")}`,
-    [],
+const projects = [
+  "No Project",
+  "KRVE Website",
+  "KRVE AI Studio",
+  "KEOS Development",
+  "Luxury Collection 2026",
+  "Retail Expansion",
+  "Brand Campaign 2026",
+];
+
+const taxCodes = [
+  "No Tax",
+  "GST 0%",
+  "GST 5%",
+  "GST 12%",
+  "GST 18%",
+  "GST 28%",
+  "TDS 1%",
+  "TDS 2%",
+  "TDS 10%",
+];
+
+const entryTypes = [
+  "Standard Journal",
+  "Adjustment Journal",
+  "Accrual Journal",
+  "Reclassification Journal",
+  "Opening Balance Journal",
+];
+
+const companies = [
+  "KRVE Fashion Studio Private Limited",
+  "KRVE AI Labs",
+];
+
+const branches = [
+  "Head Office",
+  "Varanasi",
+  "Delhi",
+  "Mumbai",
+  "Bengaluru",
+];
+
+const currencies = [
+  "INR",
+  "USD",
+  "EUR",
+  "GBP",
+  "AED",
+];
+
+const inputClassName =
+  "h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-[#10233b] outline-none transition placeholder:text-slate-400 focus:border-[#10233b] focus:ring-2 focus:ring-[#10233b]/10";
+
+const selectClassName =
+  "h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-[#10233b] outline-none transition focus:border-[#10233b] focus:ring-2 focus:ring-[#10233b]/10";
+
+const tableInputClassName =
+  "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-[#10233b] outline-none transition placeholder:text-slate-400 focus:border-[#10233b] focus:ring-2 focus:ring-[#10233b]/10";
+
+const amountInputClassName =
+  "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-right text-xs font-black tabular-nums text-[#10233b] outline-none transition placeholder:text-slate-400 focus:border-[#10233b] focus:ring-2 focus:ring-[#10233b]/10";
+
+function generateId(prefix = "id") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return crypto.randomUUID();
+  }
+
+  return `${prefix}-${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2, 10)}`;
+}
+
+function createJournalNumber() {
+  const stamp = new Date()
+    .toISOString()
+    .replace(/\D/g, "")
+    .slice(0, 14);
+
+  return `JE-${stamp}`;
+}
+
+function getToday() {
+  return new Date().toISOString().split("T")[0];
+}
+
+function createEmptyLine(): JournalLine {
+  return {
+    id: generateId("line"),
+    accountCode: "",
+    accountName: "",
+    accountType: "",
+    description: "",
+    debit: "",
+    credit: "",
+    department: "",
+    costCenter: "",
+    project: "No Project",
+    taxCode: "No Tax",
+  };
+}
+
+function parseAmount(value: string) {
+  const amount = Number(
+    value.replace(/,/g, ""),
   );
 
-  const netAmount =
-    form.amount +
-    form.bankCharges -
-    form.tdsAmount -
-    form.adjustmentAmount;
+  return Number.isFinite(amount)
+    ? amount
+    : 0;
+}
 
-  const paymentRisk =
-    netAmount >= 500000 ? "High" : netAmount >= 100000 ? "Medium" : "Low";
+function normalizeAmount(value: string) {
+  const cleaned = value
+    .replace(/,/g, "")
+    .replace(/[^\d.]/g, "");
 
-  const updateForm = <K extends keyof PaymentForm>(
-    field: K,
-    value: PaymentForm[K],
-  ) => {
-    setForm((current) => ({
-      ...current,
-      [field]: value,
-    }));
+  const parts = cleaned.split(".");
 
-    setSavedDraft(false);
-    setSubmitted(false);
-  };
+  if (parts.length <= 1) {
+    return cleaned;
+  }
 
-  const saveDraft = () => {
-    setStatus("Draft");
-    setSavedDraft(true);
-    setSubmitted(false);
+  return `${parts[0]}.${parts
+    .slice(1)
+    .join("")}`;
+}
 
-    window.setTimeout(() => {
-      setSavedDraft(false);
-    }, 1800);
-  };
+function formatCurrency(
+  value: number,
+  currency = "INR",
+) {
+  try {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 2,
+    }).format(value);
+  } catch {
+    return `${currency} ${value.toFixed(2)}`;
+  }
+}
 
-  const submitPayment = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
 
-    setStatus("Pending Reconciliation");
-    setSubmitted(true);
-    setSavedDraft(false);
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(
+      1,
+    )} KB`;
+  }
 
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  };
+  return `${(
+    bytes /
+    (1024 * 1024)
+  ).toFixed(1)} MB`;
+}
 
-  const clearForm = () => {
-    setForm(initialForm);
-    setStatus("Draft");
-    setSavedDraft(false);
-    setSubmitted(false);
-  };
-
+function FieldLabel({
+  children,
+  required = false,
+}: {
+  children: React.ReactNode;
+  required?: boolean;
+}) {
   return (
-    <main className="min-h-screen bg-[#f5f7fa]">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-[1500px] flex-col gap-5 px-5 py-6 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-          <div className="flex items-start gap-4">
-            <Link
-              href="/finance"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-[#10233b] transition hover:bg-slate-50"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
+    <label className="mb-2 block text-xs font-black text-[#10233b]">
+      {children}
 
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#d02b3f]">
-                Finance Operations
-              </p>
-
-              <h1 className="mt-2 text-2xl font-black tracking-tight text-[#10233b] sm:text-3xl">
-                Record Payment
-              </h1>
-
-              <p className="mt-1 text-sm font-medium text-slate-500">
-                Record incoming or outgoing payments and send them for bank
-                reconciliation
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <span
-              className={[
-                "rounded-full px-4 py-2 text-xs font-black",
-                status === "Draft"
-                  ? "bg-slate-100 text-slate-600"
-                  : status === "Recorded"
-                    ? "bg-emerald-50 text-emerald-700"
-                    : "bg-amber-50 text-amber-700",
-              ].join(" ")}
-            >
-              {status}
-            </span>
-
-            <span className="rounded-full bg-[#10233b] px-4 py-2 text-xs font-black text-white">
-              {paymentNumber}
-            </span>
-          </div>
-        </div>
-      </header>
-
-      {submitted && (
-        <section className="border-b border-emerald-200 bg-emerald-50">
-          <div className="mx-auto flex max-w-[1500px] items-start gap-3 px-5 py-4 sm:px-6 lg:px-8">
-            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
-
-            <div>
-              <p className="text-sm font-black text-emerald-800">
-                Payment recorded successfully
-              </p>
-
-              <p className="mt-1 text-xs font-semibold text-emerald-700">
-                Payment {paymentNumber} is now pending bank reconciliation.
-              </p>
-            </div>
-          </div>
-        </section>
+      {required && (
+        <span className="ml-1 text-rose-500">
+          *
+        </span>
       )}
-
-      <form
-        onSubmit={submitPayment}
-        className="mx-auto max-w-[1500px] p-4 sm:p-6 lg:p-8"
-      >
-        <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,1fr)_390px]">
-          <div className="space-y-5">
-            <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-              <SectionHeader
-                eyebrow="Payment Direction"
-                title="Payment Type"
-                description="Choose whether money is being received or paid"
-                icon={<CircleDollarSign className="h-7 w-7" />}
-              />
-
-              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    updateForm("paymentType", "Incoming");
-                    updateForm("partyType", "Customer");
-                    updateForm("referenceType", "Sales Invoice");
-                    updateForm("partyName", "");
-                  }}
-                  className={[
-                    "rounded-[22px] border-2 p-5 text-left transition",
-                    form.paymentType === "Incoming"
-                      ? "border-emerald-500 bg-emerald-50"
-                      : "border-slate-200 bg-white hover:bg-slate-50",
-                  ].join(" ")}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
-                      <IndianRupee className="h-5 w-5" />
-                    </div>
-
-                    {form.paymentType === "Incoming" && (
-                      <BadgeCheck className="h-5 w-5 text-emerald-600" />
-                    )}
-                  </div>
-
-                  <p className="mt-4 text-sm font-black text-[#10233b]">
-                    Incoming Payment
-                  </p>
-
-                  <p className="mt-1 text-xs font-semibold text-slate-500">
-                    Receive money from a customer or another party
-                  </p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    updateForm("paymentType", "Outgoing");
-                    updateForm("partyType", "Vendor");
-                    updateForm("referenceType", "Vendor Invoice");
-                    updateForm("partyName", "");
-                  }}
-                  className={[
-                    "rounded-[22px] border-2 p-5 text-left transition",
-                    form.paymentType === "Outgoing"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-slate-200 bg-white hover:bg-slate-50",
-                  ].join(" ")}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
-                      <Banknote className="h-5 w-5" />
-                    </div>
-
-                    {form.paymentType === "Outgoing" && (
-                      <BadgeCheck className="h-5 w-5 text-blue-600" />
-                    )}
-                  </div>
-
-                  <p className="mt-4 text-sm font-black text-[#10233b]">
-                    Outgoing Payment
-                  </p>
-
-                  <p className="mt-1 text-xs font-semibold text-slate-500">
-                    Pay a vendor, employee or another party
-                  </p>
-                </button>
-              </div>
-            </section>
-
-            <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-              <SectionHeader
-                eyebrow="Party Information"
-                title="Customer or Payee Details"
-                description="Select the party associated with this payment"
-                icon={<Building2 className="h-7 w-7" />}
-              />
-
-              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Party Type" required>
-                  <select
-                    value={form.partyType}
-                    onChange={(event) => {
-                      const value = event.target.value as PaymentForm["partyType"];
-
-                      updateForm("partyType", value);
-                      updateForm("partyName", "");
-                    }}
-                    className="input-style bg-white"
-                  >
-                    <option value="Customer">Customer</option>
-                    <option value="Vendor">Vendor</option>
-                    <option value="Employee">Employee</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </Field>
-
-                <Field label="Party Name" required>
-                  <div className="relative">
-                    <UserRound className="input-icon" />
-
-                    <select
-                      required
-                      value={form.partyName}
-                      onChange={(event) =>
-                        updateForm("partyName", event.target.value)
-                      }
-                      className="input-style bg-white pl-11"
-                    >
-                      <option value="">Select party</option>
-
-                      {partyOptions[form.partyType].map((party) => (
-                        <option key={party} value={party}>
-                          {party}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </Field>
-
-                <Field label="Email Address">
-                  <div className="relative">
-                    <Mail className="input-icon" />
-
-                    <input
-                      type="email"
-                      value={form.email}
-                      onChange={(event) =>
-                        updateForm("email", event.target.value)
-                      }
-                      placeholder="accounts@example.com"
-                      className="input-style pl-11"
-                    />
-                  </div>
-                </Field>
-
-                <Field label="Reference Type">
-                  <select
-                    value={form.referenceType}
-                    onChange={(event) =>
-                      updateForm("referenceType", event.target.value)
-                    }
-                    className="input-style bg-white"
-                  >
-                    <option>Sales Invoice</option>
-                    <option>Vendor Invoice</option>
-                    <option>Expense Claim</option>
-                    <option>Purchase Order</option>
-                    <option>Advance Payment</option>
-                    <option>Refund</option>
-                    <option>Other</option>
-                  </select>
-                </Field>
-
-                <Field
-                  label="Reference Number"
-                  className="sm:col-span-2"
-                >
-                  <div className="relative">
-                    <FileText className="input-icon" />
-
-                    <input
-                      value={form.referenceNumber}
-                      onChange={(event) =>
-                        updateForm("referenceNumber", event.target.value)
-                      }
-                      placeholder="Invoice, bill or order reference"
-                      className="input-style pl-11"
-                    />
-                  </div>
-                </Field>
-              </div>
-            </section>
-
-            <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-              <SectionHeader
-                eyebrow="Transaction Details"
-                title="Payment Information"
-                description="Enter payment date, method and bank reference"
-                icon={<CreditCard className="h-7 w-7" />}
-              />
-
-              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Payment Date" required>
-                  <div className="relative">
-                    <CalendarDays className="input-icon" />
-
-                    <input
-                      required
-                      type="date"
-                      value={form.paymentDate}
-                      onChange={(event) =>
-                        updateForm("paymentDate", event.target.value)
-                      }
-                      className="input-style pl-11"
-                    />
-                  </div>
-                </Field>
-
-                <Field label="Payment Method" required>
-                  <select
-                    value={form.paymentMethod}
-                    onChange={(event) =>
-                      updateForm("paymentMethod", event.target.value)
-                    }
-                    className="input-style bg-white"
-                  >
-                    <option>Bank Transfer</option>
-                    <option>UPI</option>
-                    <option>Corporate Card</option>
-                    <option>Cheque</option>
-                    <option>Cash</option>
-                    <option>Payment Gateway</option>
-                    <option>Wallet</option>
-                  </select>
-                </Field>
-
-                <Field label="Bank Account" required>
-                  <div className="relative">
-                    <Landmark className="input-icon" />
-
-                    <select
-                      value={form.bankAccount}
-                      onChange={(event) =>
-                        updateForm("bankAccount", event.target.value)
-                      }
-                      className="input-style bg-white pl-11"
-                    >
-                      <option>HDFC Bank •••• 4821</option>
-                      <option>ICICI Bank •••• 7456</option>
-                      <option>State Bank of India •••• 1208</option>
-                      <option>Axis Bank •••• 9382</option>
-                      <option>Cash Account</option>
-                    </select>
-                  </div>
-                </Field>
-
-                <Field label="Transaction Reference" required>
-                  <div className="relative">
-                    <Hash className="input-icon" />
-
-                    <input
-                      required
-                      value={form.transactionReference}
-                      onChange={(event) =>
-                        updateForm(
-                          "transactionReference",
-                          event.target.value.toUpperCase(),
-                        )
-                      }
-                      placeholder="UTR, cheque or transaction ID"
-                      className="input-style uppercase pl-11"
-                    />
-                  </div>
-                </Field>
-
-                <Field label="Currency">
-                  <select
-                    value={form.currency}
-                    onChange={(event) =>
-                      updateForm("currency", event.target.value)
-                    }
-                    className="input-style bg-white"
-                  >
-                    <option value="INR">INR — Indian Rupee</option>
-                    <option value="USD">USD — US Dollar</option>
-                    <option value="EUR">EUR — Euro</option>
-                    <option value="GBP">GBP — British Pound</option>
-                  </select>
-                </Field>
-              </div>
-            </section>
-
-            <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-              <SectionHeader
-                eyebrow="Financial Allocation"
-                title="Amount and Deductions"
-                description="Enter payment value, charges and adjustments"
-                icon={<WalletCards className="h-7 w-7" />}
-              />
-
-              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Payment Amount" required>
-                  <div className="relative">
-                    <IndianRupee className="input-icon" />
-
-                    <input
-                      required
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={form.amount || ""}
-                      onChange={(event) =>
-                        updateForm(
-                          "amount",
-                          Number(event.target.value || 0),
-                        )
-                      }
-                      placeholder="0.00"
-                      className="input-style pl-11"
-                    />
-                  </div>
-                </Field>
-
-                <Field label="Bank Charges">
-                  <div className="relative">
-                    <IndianRupee className="input-icon" />
-
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={form.bankCharges || ""}
-                      onChange={(event) =>
-                        updateForm(
-                          "bankCharges",
-                          Number(event.target.value || 0),
-                        )
-                      }
-                      placeholder="0.00"
-                      className="input-style pl-11"
-                    />
-                  </div>
-                </Field>
-
-                <Field label="TDS Deduction">
-                  <div className="relative">
-                    <IndianRupee className="input-icon" />
-
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={form.tdsAmount || ""}
-                      onChange={(event) =>
-                        updateForm(
-                          "tdsAmount",
-                          Number(event.target.value || 0),
-                        )
-                      }
-                      placeholder="0.00"
-                      className="input-style pl-11"
-                    />
-                  </div>
-                </Field>
-
-                <Field label="Adjustment Amount">
-                  <div className="relative">
-                    <IndianRupee className="input-icon" />
-
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={form.adjustmentAmount || ""}
-                      onChange={(event) =>
-                        updateForm(
-                          "adjustmentAmount",
-                          Number(event.target.value || 0),
-                        )
-                      }
-                      placeholder="0.00"
-                      className="input-style pl-11"
-                    />
-                  </div>
-                </Field>
-              </div>
-            </section>
-
-            <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-              <SectionHeader
-                eyebrow="Description"
-                title="Payment Narration"
-                description="Add details for ledger and audit records"
-                icon={<ReceiptText className="h-7 w-7" />}
-              />
-
-              <div className="mt-6 space-y-4">
-                <Field label="Narration" required>
-                  <textarea
-                    required
-                    rows={4}
-                    value={form.narration}
-                    onChange={(event) =>
-                      updateForm("narration", event.target.value)
-                    }
-                    placeholder="Enter the purpose and description of this payment..."
-                    className="textarea-style"
-                  />
-                </Field>
-
-                <Field label="Internal Notes">
-                  <textarea
-                    rows={4}
-                    value={form.internalNotes}
-                    onChange={(event) =>
-                      updateForm("internalNotes", event.target.value)
-                    }
-                    placeholder="Add internal finance or reconciliation notes..."
-                    className="textarea-style"
-                  />
-                </Field>
-              </div>
-            </section>
-          </div>
-
-          <aside className="space-y-5 2xl:sticky 2xl:top-6 2xl:h-fit">
-            <section className="rounded-[28px] bg-[#10233b] p-5 text-white shadow-[0_24px_60px_rgba(15,35,59,0.2)] sm:p-6">
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-400">
-                Payment Summary
-              </p>
-
-              <h2 className="mt-2 text-xl font-black">
-                Transaction Calculation
-              </h2>
-
-              <div className="mt-6 space-y-4">
-                <SummaryRow
-                  label="Payment Amount"
-                  value={formatCurrency(form.amount)}
-                />
-
-                <SummaryRow
-                  label="Bank Charges"
-                  value={formatCurrency(form.bankCharges)}
-                />
-
-                <SummaryRow
-                  label="TDS Deduction"
-                  value={`-${formatCurrency(form.tdsAmount)}`}
-                />
-
-                <SummaryRow
-                  label="Adjustments"
-                  value={`-${formatCurrency(form.adjustmentAmount)}`}
-                />
-              </div>
-
-              <div className="mt-6 border-t border-white/10 pt-5">
-                <p className="text-xs font-semibold text-slate-300">
-                  Net Transaction Amount
-                </p>
-
-                <p className="mt-2 text-3xl font-black">
-                  {formatCurrency(netAmount)}
-                </p>
-              </div>
-            </section>
-
-            <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#d02b3f]">
-                    KEOS Intelligence
-                  </p>
-
-                  <h2 className="mt-2 text-lg font-black text-[#10233b]">
-                    Payment Validation
-                  </h2>
-                </div>
-
-                <Sparkles className="h-6 w-6 text-violet-600" />
-              </div>
-
-              <div className="mt-5 space-y-3">
-                <ValidationCard
-                  title="Reference validation"
-                  description={
-                    form.transactionReference.length >= 6
-                      ? "Transaction reference is available."
-                      : "Enter a valid transaction reference."
-                  }
-                  valid={form.transactionReference.length >= 6}
-                />
-
-                <ValidationCard
-                  title="Party validation"
-                  description={
-                    form.partyName
-                      ? `${form.partyName} selected.`
-                      : "Select a customer, vendor or payee."
-                  }
-                  valid={Boolean(form.partyName)}
-                />
-
-                <ValidationCard
-                  title="Amount validation"
-                  description={
-                    form.amount > 0
-                      ? "Payment amount is valid."
-                      : "Enter a payment amount greater than zero."
-                  }
-                  valid={form.amount > 0}
-                />
-              </div>
-            </section>
-
-            <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#d02b3f]">
-                Risk Control
-              </p>
-
-              <h2 className="mt-2 text-lg font-black text-[#10233b]">
-                Approval Requirement
-              </h2>
-
-              <div
-                className={[
-                  "mt-5 flex items-start gap-3 rounded-2xl p-4",
-                  paymentRisk === "High"
-                    ? "bg-red-50"
-                    : paymentRisk === "Medium"
-                      ? "bg-amber-50"
-                      : "bg-emerald-50",
-                ].join(" ")}
-              >
-                {paymentRisk === "Low" ? (
-                  <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
-                ) : (
-                  <AlertTriangle
-                    className={[
-                      "mt-0.5 h-5 w-5 shrink-0",
-                      paymentRisk === "High"
-                        ? "text-red-600"
-                        : "text-amber-600",
-                    ].join(" ")}
-                  />
-                )}
-
-                <div>
-                  <p
-                    className={[
-                      "text-sm font-black",
-                      paymentRisk === "High"
-                        ? "text-red-700"
-                        : paymentRisk === "Medium"
-                          ? "text-amber-700"
-                          : "text-emerald-700",
-                    ].join(" ")}
-                  >
-                    {paymentRisk} payment risk
-                  </p>
-
-                  <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
-                    {paymentRisk === "High"
-                      ? "Founder and finance controller approval required."
-                      : paymentRisk === "Medium"
-                        ? "Finance manager approval required."
-                        : "Payment is within the standard approval limit."}
-                  </p>
-                </div>
-              </div>
-            </section>
-
-            <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#d02b3f]">
-                Processing Route
-              </p>
-
-              <h2 className="mt-2 text-lg font-black text-[#10233b]">
-                Payment Workflow
-              </h2>
-
-              <div className="mt-5 space-y-3">
-                {[
-                  {
-                    number: 1,
-                    title: "Payment Entry",
-                    description: "Finance records transaction",
-                  },
-                  {
-                    number: 2,
-                    title: "Approval Check",
-                    description: "Approval based on payment value",
-                  },
-                  {
-                    number: 3,
-                    title: "Bank Reconciliation",
-                    description: "Match with bank statement",
-                  },
-                ].map((step) => (
-                  <div
-                    key={step.number}
-                    className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4"
-                  >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#10233b] text-sm font-black text-white">
-                      {step.number}
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-black text-[#10233b]">
-                        {step.title}
-                      </p>
-
-                      <p className="mt-1 text-xs font-semibold text-slate-400">
-                        {step.description}
-                      </p>
-                    </div>
-
-                    <ChevronRight className="h-4 w-4 text-slate-300" />
-                  </div>
-                ))}
-              </div>
-            </section>
-          </aside>
-        </div>
-
-        <section className="sticky bottom-0 z-20 mt-5 rounded-[24px] border border-slate-200 bg-white/95 p-4 shadow-[0_-14px_45px_rgba(15,35,59,0.1)] backdrop-blur-xl">
-          {savedDraft ? (
-            <div className="flex items-center justify-center gap-3 rounded-2xl bg-emerald-50 px-5 py-4 text-sm font-black text-emerald-700">
-              <CheckCircle2 className="h-5 w-5" />
-              Payment draft saved successfully
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <button
-                type="button"
-                onClick={clearForm}
-                className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 px-5 py-3 text-sm font-black text-slate-600 transition hover:bg-slate-50"
-              >
-                <X className="h-4 w-4" />
-                Clear Form
-              </button>
-
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={saveDraft}
-                  className="flex items-center justify-center gap-2 rounded-2xl border border-[#10233b] px-5 py-3 text-sm font-black text-[#10233b] transition hover:bg-slate-50"
-                >
-                  <Save className="h-4 w-4" />
-                  Save Draft
-                </button>
-
-                <button
-                  type="submit"
-                  className="flex items-center justify-center gap-2 rounded-2xl bg-[#10233b] px-6 py-3 text-sm font-black text-white transition hover:bg-[#183653]"
-                >
-                  <Send className="h-4 w-4" />
-                  Record Payment
-                </button>
-              </div>
-            </div>
-          )}
-        </section>
-      </form>
-
-      <style jsx global>{`
-        .input-style {
-          height: 3rem;
-          width: 100%;
-          border-radius: 1rem;
-          border: 1px solid rgb(226 232 240);
-          padding-left: 1rem;
-          padding-right: 1rem;
-          font-size: 0.875rem;
-          font-weight: 600;
-          color: #10233b;
-          outline: none;
-          transition: 0.2s;
-        }
-
-        .input-style::placeholder {
-          color: rgb(148 163 184);
-        }
-
-        .input-style:focus {
-          border-color: #10233b;
-        }
-
-        .textarea-style {
-          width: 100%;
-          resize: none;
-          border-radius: 1rem;
-          border: 1px solid rgb(226 232 240);
-          padding: 1rem;
-          font-size: 0.875rem;
-          font-weight: 600;
-          color: #10233b;
-          outline: none;
-          transition: 0.2s;
-        }
-
-        .textarea-style::placeholder {
-          color: rgb(148 163 184);
-        }
-
-        .textarea-style:focus {
-          border-color: #10233b;
-        }
-
-        .input-icon {
-          pointer-events: none;
-          position: absolute;
-          left: 1rem;
-          top: 50%;
-          height: 1rem;
-          width: 1rem;
-          transform: translateY(-50%);
-          color: rgb(148 163 184);
-        }
-      `}</style>
-    </main>
+    </label>
   );
 }
 
-function SectionHeader({
-  eyebrow,
+function SummaryCard({
   title,
-  description,
+  value,
+  helper,
   icon,
 }: {
-  eyebrow: string;
   title: string;
-  description: string;
+  value: string;
+  helper: string;
   icon: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4">
-      <div>
-        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#d02b3f]">
-          {eyebrow}
-        </p>
+    <article className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+            {title}
+          </p>
 
-        <h2 className="mt-2 text-xl font-black text-[#10233b]">{title}</h2>
+          <p className="mt-3 text-xl font-black text-[#10233b]">
+            {value}
+          </p>
 
-        <p className="mt-1 text-sm font-medium text-slate-500">
-          {description}
-        </p>
+          <p className="mt-1 text-xs font-semibold text-slate-500">
+            {helper}
+          </p>
+        </div>
+
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-[#10233b]">
+          {icon}
+        </div>
       </div>
-
-      <div className="text-[#10233b]">{icon}</div>
-    </div>
+    </article>
   );
 }
 
-function Field({
-  label,
-  required,
-  className = "",
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className={className}>
-      <label className="text-xs font-black text-[#10233b]">
-        {label}
-        {required && <span className="ml-1 text-red-500">*</span>}
-      </label>
-
-      <div className="mt-2">{children}</div>
-    </div>
-  );
-}
-
-function SummaryRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-4">
-      <span className="text-sm font-semibold text-slate-300">{label}</span>
-
-      <span className="text-right text-sm font-black">{value}</span>
-    </div>
-  );
-}
-
-function ValidationCard({
+function ValidationRow({
+  passed,
   title,
   description,
-  valid,
 }: {
+  passed: boolean;
   title: string;
   description: string;
-  valid: boolean;
 }) {
   return (
     <div
-      className={[
-        "flex items-start gap-3 rounded-2xl p-4",
-        valid ? "bg-emerald-50" : "bg-amber-50",
-      ].join(" ")}
+      className={`flex items-start gap-3 rounded-2xl p-4 ${
+        passed
+          ? "bg-emerald-50"
+          : "bg-amber-50"
+      }`}
     >
-      {valid ? (
-        <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
-      ) : (
-        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-      )}
+      <div
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
+          passed
+            ? "bg-emerald-100 text-emerald-700"
+            : "bg-amber-100 text-amber-700"
+        }`}
+      >
+        {passed ? (
+          <Check className="h-4 w-4" />
+        ) : (
+          <AlertCircle className="h-4 w-4" />
+        )}
+      </div>
 
       <div>
-        <p
-          className={[
-            "text-sm font-black",
-            valid ? "text-emerald-700" : "text-amber-700",
-          ].join(" ")}
-        >
+        <p className="text-sm font-black text-[#10233b]">
           {title}
         </p>
 
@@ -1059,5 +470,1879 @@ function ValidationCard({
         </p>
       </div>
     </div>
+  );
+}
+
+export default function CreateJournalEntryPage() {
+  const [form, setForm] =
+    useState<JournalForm>({
+      journalNumber:
+        createJournalNumber(),
+      entryDate: getToday(),
+      postingDate: getToday(),
+      entryType: "Standard Journal",
+      reference: "",
+      company:
+        "KRVE Fashion Studio Private Limited",
+      branch: "Head Office",
+      fiscalPeriod:
+        "2026-27 / P01",
+      currency: "INR",
+      exchangeRate: "1",
+      narration: "",
+      internalNotes: "",
+      approvalRequired: true,
+      recurringJournal: false,
+      recurringFrequency: "Monthly",
+      status: "Draft",
+    });
+
+  const [lines, setLines] = useState<
+    JournalLine[]
+  >([
+    createEmptyLine(),
+    createEmptyLine(),
+  ]);
+
+  const [
+    attachments,
+    setAttachments,
+  ] = useState<AttachmentItem[]>([]);
+
+  const [
+    notification,
+    setNotification,
+  ] =
+    useState<NotificationState>(null);
+
+  const [isSaving, setIsSaving] =
+    useState(false);
+
+  const [
+    isSubmitting,
+    setIsSubmitting,
+  ] = useState(false);
+
+  const totalDebit = useMemo(
+    () =>
+      lines.reduce(
+        (sum, line) =>
+          sum +
+          parseAmount(line.debit),
+        0,
+      ),
+    [lines],
+  );
+
+  const totalCredit = useMemo(
+    () =>
+      lines.reduce(
+        (sum, line) =>
+          sum +
+          parseAmount(line.credit),
+        0,
+      ),
+    [lines],
+  );
+
+  const difference = Math.abs(
+    totalDebit - totalCredit,
+  );
+
+  const hasAmounts =
+    totalDebit > 0 ||
+    totalCredit > 0;
+
+  const isBalanced =
+    hasAmounts &&
+    difference < 0.01;
+
+  const completeLines =
+    lines.filter((line) => {
+      const debit = parseAmount(
+        line.debit,
+      );
+
+      const credit = parseAmount(
+        line.credit,
+      );
+
+      return (
+        line.accountCode !== "" &&
+        ((debit > 0 &&
+          credit === 0) ||
+          (credit > 0 &&
+            debit === 0))
+      );
+    });
+
+  const allLinesComplete =
+    completeLines.length >= 2 &&
+    completeLines.length ===
+      lines.length;
+
+  const hasNarration =
+    form.narration.trim().length >=
+    5;
+
+  const hasDates = Boolean(
+    form.entryDate &&
+      form.postingDate,
+  );
+
+  const readyToSubmit =
+    isBalanced &&
+    allLinesComplete &&
+    hasNarration &&
+    hasDates;
+
+  const updateForm = <
+    K extends keyof JournalForm,
+  >(
+    key: K,
+    value: JournalForm[K],
+  ) => {
+    setForm((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  };
+
+  const showNotification = (
+    type:
+      | "success"
+      | "warning"
+      | "error",
+    title: string,
+    message: string,
+  ) => {
+    setNotification({
+      type,
+      title,
+      message,
+    });
+
+    window.setTimeout(() => {
+      setNotification(null);
+    }, 4000);
+  };
+
+  const updateAccount = (
+    lineId: string,
+    accountCode: string,
+  ) => {
+    const selectedAccount =
+      accounts.find(
+        (account) =>
+          account.code ===
+          accountCode,
+      );
+
+    const updatedLines: JournalLine[] =
+      lines.map(
+        (
+          line,
+        ): JournalLine => {
+          if (
+            line.id !== lineId
+          ) {
+            return line;
+          }
+
+          if (!selectedAccount) {
+            return {
+              ...line,
+              accountCode: "",
+              accountName: "",
+              accountType: "",
+            };
+          }
+
+          return {
+            ...line,
+            accountCode:
+              selectedAccount.code,
+            accountName:
+              selectedAccount.name,
+            accountType:
+              selectedAccount.type,
+          };
+        },
+      );
+
+    setLines(updatedLines);
+  };
+
+  const updateLine = (
+    lineId: string,
+    field: keyof JournalLine,
+    value: string,
+  ) => {
+    const updatedLines: JournalLine[] =
+      lines.map(
+        (
+          line,
+        ): JournalLine => {
+          if (
+            line.id !== lineId
+          ) {
+            return line;
+          }
+
+          if (field === "debit") {
+            const normalized =
+              normalizeAmount(value);
+
+            return {
+              ...line,
+              debit: normalized,
+              credit:
+                parseAmount(
+                  normalized,
+                ) > 0
+                  ? ""
+                  : line.credit,
+            };
+          }
+
+          if (field === "credit") {
+            const normalized =
+              normalizeAmount(value);
+
+            return {
+              ...line,
+              credit: normalized,
+              debit:
+                parseAmount(
+                  normalized,
+                ) > 0
+                  ? ""
+                  : line.debit,
+            };
+          }
+
+          return {
+            ...line,
+            [field]: value,
+          };
+        },
+      );
+
+    setLines(updatedLines);
+  };
+
+  const addLine = () => {
+    setLines((current) => [
+      ...current,
+      createEmptyLine(),
+    ]);
+  };
+
+  const duplicateLine = (
+    lineId: string,
+  ) => {
+    const index = lines.findIndex(
+      (line) =>
+        line.id === lineId,
+    );
+
+    if (index === -1) {
+      return;
+    }
+
+    const selectedLine =
+      lines[index];
+
+    const duplicatedLine: JournalLine =
+      {
+        ...selectedLine,
+        id: generateId("line"),
+        description:
+          selectedLine.description
+            ? `${selectedLine.description} — Copy`
+            : "",
+      };
+
+    const updatedLines = [
+      ...lines,
+    ];
+
+    updatedLines.splice(
+      index + 1,
+      0,
+      duplicatedLine,
+    );
+
+    setLines(updatedLines);
+  };
+
+  const removeLine = (
+    lineId: string,
+  ) => {
+    if (lines.length <= 2) {
+      setLines((current) =>
+        current.map((line) =>
+          line.id === lineId
+            ? createEmptyLine()
+            : line,
+        ),
+      );
+
+      return;
+    }
+
+    setLines((current) =>
+      current.filter(
+        (line) =>
+          line.id !== lineId,
+      ),
+    );
+  };
+
+  const addBalancingLine = () => {
+    if (
+      !hasAmounts ||
+      isBalanced
+    ) {
+      return;
+    }
+
+    const balancingLine =
+      createEmptyLine();
+
+    const signedDifference =
+      totalDebit - totalCredit;
+
+    if (
+      signedDifference > 0
+    ) {
+      balancingLine.credit =
+        Math.abs(
+          signedDifference,
+        ).toFixed(2);
+    } else {
+      balancingLine.debit =
+        Math.abs(
+          signedDifference,
+        ).toFixed(2);
+    }
+
+    balancingLine.description =
+      "Automatic balancing entry";
+
+    setLines((current) => [
+      ...current,
+      balancingLine,
+    ]);
+  };
+
+  const clearJournal = () => {
+    setForm({
+      journalNumber:
+        createJournalNumber(),
+      entryDate: getToday(),
+      postingDate: getToday(),
+      entryType:
+        "Standard Journal",
+      reference: "",
+      company:
+        "KRVE Fashion Studio Private Limited",
+      branch: "Head Office",
+      fiscalPeriod:
+        "2026-27 / P01",
+      currency: "INR",
+      exchangeRate: "1",
+      narration: "",
+      internalNotes: "",
+      approvalRequired: true,
+      recurringJournal: false,
+      recurringFrequency:
+        "Monthly",
+      status: "Draft",
+    });
+
+    setLines([
+      createEmptyLine(),
+      createEmptyLine(),
+    ]);
+
+    setAttachments([]);
+
+    showNotification(
+      "success",
+      "Journal cleared",
+      "A new blank journal has been created.",
+    );
+  };
+
+  const getPayload = () => ({
+    ...form,
+    totalDebit,
+    totalCredit,
+    difference,
+    lines,
+    attachments,
+    createdAt:
+      new Date().toISOString(),
+  });
+
+  const saveDraft = async () => {
+    setIsSaving(true);
+
+    try {
+      localStorage.setItem(
+        `keos-${form.journalNumber}`,
+        JSON.stringify(
+          getPayload(),
+        ),
+      );
+
+      await new Promise(
+        (resolve) =>
+          window.setTimeout(
+            resolve,
+            500,
+          ),
+      );
+
+      showNotification(
+        "success",
+        "Draft saved",
+        `${form.journalNumber} has been saved in this browser.`,
+      );
+    } catch {
+      showNotification(
+        "error",
+        "Save failed",
+        "The journal could not be saved.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const submitJournal =
+    async () => {
+      if (!readyToSubmit) {
+        showNotification(
+          "warning",
+          "Journal not ready",
+          "Complete all fields and balance debit with credit.",
+        );
+
+        return;
+      }
+
+      setIsSubmitting(true);
+
+      await new Promise(
+        (resolve) =>
+          window.setTimeout(
+            resolve,
+            700,
+          ),
+      );
+
+      setForm((current) => ({
+        ...current,
+        status:
+          current.approvalRequired
+            ? "Submitted"
+            : "Posted",
+      }));
+
+      showNotification(
+        "success",
+        form.approvalRequired
+          ? "Submitted for approval"
+          : "Journal posted",
+        form.approvalRequired
+          ? "The journal has entered the finance approval workflow."
+          : "The journal has been posted to the general ledger.",
+      );
+
+      setIsSubmitting(false);
+    };
+
+  const exportJournal = () => {
+    const file = new Blob(
+      [
+        JSON.stringify(
+          getPayload(),
+          null,
+          2,
+        ),
+      ],
+      {
+        type: "application/json",
+      },
+    );
+
+    const url =
+      URL.createObjectURL(file);
+
+    const anchor =
+      document.createElement("a");
+
+    anchor.href = url;
+    anchor.download = `${form.journalNumber}.json`;
+    anchor.click();
+
+    URL.revokeObjectURL(url);
+  };
+
+  const uploadFiles = (
+    event: ChangeEvent<HTMLInputElement>,
+  ) => {
+    const selectedFiles =
+      Array.from(
+        event.target.files ?? [],
+      );
+
+    const newAttachments: AttachmentItem[] =
+      selectedFiles.map(
+        (file) => ({
+          id: generateId(
+            "attachment",
+          ),
+          name: file.name,
+          size: file.size,
+          type:
+            file.type ||
+            "Unknown",
+        }),
+      );
+
+    setAttachments(
+      (current) => [
+        ...current,
+        ...newAttachments,
+      ],
+    );
+
+    event.target.value = "";
+  };
+
+  return (
+    <main className="min-h-screen bg-[#f5f7fb] text-[#10233b]">
+      {notification && (
+        <div className="fixed right-6 top-6 z-[100] w-[360px] max-w-[calc(100vw-3rem)] rounded-[22px] border border-slate-200 bg-white p-4 shadow-2xl">
+          <div className="flex items-start gap-3">
+            <div
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                notification.type ===
+                "success"
+                  ? "bg-emerald-50 text-emerald-600"
+                  : notification.type ===
+                      "warning"
+                    ? "bg-amber-50 text-amber-600"
+                    : "bg-rose-50 text-rose-600"
+              }`}
+            >
+              {notification.type ===
+              "success" ? (
+                <CheckCircle2 className="h-5 w-5" />
+              ) : (
+                <AlertCircle className="h-5 w-5" />
+              )}
+            </div>
+
+            <div>
+              <p className="text-sm font-black">
+                {
+                  notification.title
+                }
+              </p>
+
+              <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+                {
+                  notification.message
+                }
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-[1750px] flex-col gap-5 px-6 py-6 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex items-start gap-4">
+            <Link
+              href="/finance/general-ledger"
+              className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 hover:bg-slate-50"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+
+            <div>
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-red-600">
+                  Finance ERP •
+                  Journal Entry
+                </p>
+
+                <span
+                  className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${
+                    form.status ===
+                    "Draft"
+                      ? "bg-amber-100 text-amber-700"
+                      : form.status ===
+                          "Submitted"
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-emerald-100 text-emerald-700"
+                  }`}
+                >
+                  {form.status}
+                </span>
+              </div>
+
+              <h1 className="mt-2 text-3xl font-black">
+                Create Journal
+                Entry
+              </h1>
+
+              <p className="mt-1 text-sm font-semibold text-slate-500">
+                Journal Number:
+                <span className="ml-2 font-black text-[#10233b]">
+                  {
+                    form.journalNumber
+                  }
+                </span>
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={exportJournal}
+              className="flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black hover:bg-slate-50"
+            >
+              <FileDown className="h-4 w-4" />
+              Export
+            </button>
+
+            <button
+              type="button"
+              onClick={clearJournal}
+              className="flex h-11 items-center gap-2 rounded-2xl border border-rose-200 bg-white px-4 text-sm font-black text-rose-600 hover:bg-rose-50"
+            >
+              <Trash2 className="h-4 w-4" />
+              Clear
+            </button>
+
+            <button
+              type="button"
+              onClick={saveDraft}
+              disabled={
+                isSaving ||
+                isSubmitting
+              }
+              className="flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black hover:bg-slate-50 disabled:opacity-50"
+            >
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+
+              Save Draft
+            </button>
+
+            <button
+              type="button"
+              onClick={
+                submitJournal
+              }
+              disabled={
+                isSaving ||
+                isSubmitting
+              }
+              className="flex h-11 items-center gap-2 rounded-2xl bg-[#10233b] px-6 text-sm font-black text-white hover:bg-[#183653] disabled:opacity-50"
+            >
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+
+              {form.approvalRequired
+                ? "Submit for Approval"
+                : "Post Journal"}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="mx-auto max-w-[1750px] space-y-6 px-6 py-7">
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <SummaryCard
+            title="Total Debit"
+            value={formatCurrency(
+              totalDebit,
+              form.currency,
+            )}
+            helper="Current journal debit"
+            icon={
+              <FileText className="h-5 w-5" />
+            }
+          />
+
+          <SummaryCard
+            title="Total Credit"
+            value={formatCurrency(
+              totalCredit,
+              form.currency,
+            )}
+            helper="Current journal credit"
+            icon={
+              <FileText className="h-5 w-5" />
+            }
+          />
+
+          <SummaryCard
+            title="Difference"
+            value={formatCurrency(
+              difference,
+              form.currency,
+            )}
+            helper={
+              isBalanced
+                ? "Journal is balanced"
+                : "Adjustment required"
+            }
+            icon={
+              <Scale className="h-5 w-5" />
+            }
+          />
+
+          <SummaryCard
+            title="Status"
+            value={form.status}
+            helper={
+              form.approvalRequired
+                ? "Approval workflow enabled"
+                : "Direct posting enabled"
+            }
+            icon={
+              <CheckCircle2 className="h-5 w-5" />
+            }
+          />
+        </section>
+
+        <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-red-600">
+            Journal Information
+          </p>
+
+          <h2 className="mt-2 text-xl font-black">
+            Entry Details
+          </h2>
+
+          <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            <div>
+              <FieldLabel required>
+                Journal Number
+              </FieldLabel>
+
+              <div className="relative">
+                <Hash className="absolute left-4 top-4 h-4 w-4 text-slate-400" />
+
+                <input
+                  value={
+                    form.journalNumber
+                  }
+                  readOnly
+                  className={`${inputClassName} bg-slate-50 pl-11`}
+                />
+              </div>
+            </div>
+
+            <div>
+              <FieldLabel required>
+                Entry Date
+              </FieldLabel>
+
+              <input
+                type="date"
+                value={
+                  form.entryDate
+                }
+                onChange={(event) =>
+                  updateForm(
+                    "entryDate",
+                    event.target.value,
+                  )
+                }
+                className={
+                  inputClassName
+                }
+              />
+            </div>
+
+            <div>
+              <FieldLabel required>
+                Posting Date
+              </FieldLabel>
+
+              <input
+                type="date"
+                value={
+                  form.postingDate
+                }
+                onChange={(event) =>
+                  updateForm(
+                    "postingDate",
+                    event.target.value,
+                  )
+                }
+                className={
+                  inputClassName
+                }
+              />
+            </div>
+
+            <div>
+              <FieldLabel required>
+                Entry Type
+              </FieldLabel>
+
+              <select
+                value={
+                  form.entryType
+                }
+                onChange={(event) =>
+                  updateForm(
+                    "entryType",
+                    event.target.value,
+                  )
+                }
+                className={
+                  selectClassName
+                }
+              >
+                {entryTypes.map(
+                  (entryType) => (
+                    <option
+                      key={
+                        entryType
+                      }
+                      value={
+                        entryType
+                      }
+                    >
+                      {entryType}
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+
+            <div>
+              <FieldLabel>
+                Reference
+              </FieldLabel>
+
+              <input
+                value={
+                  form.reference
+                }
+                onChange={(event) =>
+                  updateForm(
+                    "reference",
+                    event.target.value,
+                  )
+                }
+                placeholder="Invoice or voucher number"
+                className={
+                  inputClassName
+                }
+              />
+            </div>
+
+            <div>
+              <FieldLabel required>
+                Fiscal Period
+              </FieldLabel>
+
+              <input
+                value={
+                  form.fiscalPeriod
+                }
+                onChange={(event) =>
+                  updateForm(
+                    "fiscalPeriod",
+                    event.target.value,
+                  )
+                }
+                className={
+                  inputClassName
+                }
+              />
+            </div>
+
+            <div>
+              <FieldLabel required>
+                Company
+              </FieldLabel>
+
+              <select
+                value={form.company}
+                onChange={(event) =>
+                  updateForm(
+                    "company",
+                    event.target.value,
+                  )
+                }
+                className={
+                  selectClassName
+                }
+              >
+                {companies.map(
+                  (company) => (
+                    <option
+                      key={company}
+                      value={company}
+                    >
+                      {company}
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+
+            <div>
+              <FieldLabel required>
+                Branch
+              </FieldLabel>
+
+              <select
+                value={form.branch}
+                onChange={(event) =>
+                  updateForm(
+                    "branch",
+                    event.target.value,
+                  )
+                }
+                className={
+                  selectClassName
+                }
+              >
+                {branches.map(
+                  (branch) => (
+                    <option
+                      key={branch}
+                      value={branch}
+                    >
+                      {branch}
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+
+            <div>
+              <FieldLabel required>
+                Currency
+              </FieldLabel>
+
+              <select
+                value={
+                  form.currency
+                }
+                onChange={(event) =>
+                  updateForm(
+                    "currency",
+                    event.target.value,
+                  )
+                }
+                className={
+                  selectClassName
+                }
+              >
+                {currencies.map(
+                  (currency) => (
+                    <option
+                      key={currency}
+                      value={currency}
+                    >
+                      {currency}
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+
+            <div>
+              <FieldLabel required>
+                Exchange Rate
+              </FieldLabel>
+
+              <input
+                value={
+                  form.exchangeRate
+                }
+                onChange={(event) =>
+                  updateForm(
+                    "exchangeRate",
+                    normalizeAmount(
+                      event.target
+                        .value,
+                    ),
+                  )
+                }
+                className={
+                  inputClassName
+                }
+              />
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-5 xl:grid-cols-2">
+            <div>
+              <FieldLabel required>
+                Narration
+              </FieldLabel>
+
+              <textarea
+                rows={5}
+                value={
+                  form.narration
+                }
+                onChange={(event) =>
+                  updateForm(
+                    "narration",
+                    event.target.value,
+                  )
+                }
+                placeholder="Explain the accounting purpose of this journal..."
+                className="w-full resize-none rounded-2xl border border-slate-200 p-4 text-sm font-semibold outline-none focus:border-[#10233b] focus:ring-2 focus:ring-[#10233b]/10"
+              />
+            </div>
+
+            <div>
+              <FieldLabel>
+                Internal Notes
+              </FieldLabel>
+
+              <textarea
+                rows={5}
+                value={
+                  form.internalNotes
+                }
+                onChange={(event) =>
+                  updateForm(
+                    "internalNotes",
+                    event.target.value,
+                  )
+                }
+                placeholder="Notes for finance approvers..."
+                className="w-full resize-none rounded-2xl border border-slate-200 p-4 text-sm font-semibold outline-none focus:border-[#10233b] focus:ring-2 focus:ring-[#10233b]/10"
+              />
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 p-4">
+              <div>
+                <p className="text-sm font-black">
+                  Approval Required
+                </p>
+
+                <p className="mt-1 text-xs font-semibold text-slate-500">
+                  Route through finance approval.
+                </p>
+              </div>
+
+              <input
+                type="checkbox"
+                checked={
+                  form.approvalRequired
+                }
+                onChange={(event) =>
+                  updateForm(
+                    "approvalRequired",
+                    event.target
+                      .checked,
+                  )
+                }
+                className="h-5 w-5 accent-[#10233b]"
+              />
+            </label>
+
+            <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 p-4">
+              <div>
+                <p className="text-sm font-black">
+                  Recurring Journal
+                </p>
+
+                <p className="mt-1 text-xs font-semibold text-slate-500">
+                  Repeat this entry periodically.
+                </p>
+              </div>
+
+              <input
+                type="checkbox"
+                checked={
+                  form.recurringJournal
+                }
+                onChange={(event) =>
+                  updateForm(
+                    "recurringJournal",
+                    event.target
+                      .checked,
+                  )
+                }
+                className="h-5 w-5 accent-[#10233b]"
+              />
+            </label>
+          </div>
+
+          {form.recurringJournal && (
+            <div className="mt-5 max-w-sm">
+              <FieldLabel>
+                Frequency
+              </FieldLabel>
+
+              <select
+                value={
+                  form.recurringFrequency
+                }
+                onChange={(event) =>
+                  updateForm(
+                    "recurringFrequency",
+                    event.target.value,
+                  )
+                }
+                className={
+                  selectClassName
+                }
+              >
+                <option value="Monthly">
+                  Monthly
+                </option>
+
+                <option value="Quarterly">
+                  Quarterly
+                </option>
+
+                <option value="Half-Yearly">
+                  Half-Yearly
+                </option>
+
+                <option value="Yearly">
+                  Yearly
+                </option>
+              </select>
+            </div>
+          )}
+        </section>
+
+        <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-col gap-4 border-b border-slate-200 p-6 xl:flex-row xl:items-center xl:justify-between">
+            <div>
+              <h2 className="text-xl font-black">
+                Journal Lines
+              </h2>
+
+              <p className="mt-1 text-sm font-semibold text-slate-500">
+                Enter debit and
+                credit accounts for
+                the transaction.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  setLines([
+                    createEmptyLine(),
+                    createEmptyLine(),
+                  ])
+                }
+                className="flex h-11 items-center gap-2 rounded-2xl border border-slate-200 px-4 text-xs font-black hover:bg-rose-50 hover:text-rose-600"
+              >
+                <Trash2 className="h-4 w-4" />
+                Clear Lines
+              </button>
+
+              <button
+                type="button"
+                onClick={
+                  addBalancingLine
+                }
+                disabled={
+                  !hasAmounts ||
+                  isBalanced
+                }
+                className="flex h-11 items-center gap-2 rounded-2xl border border-slate-200 px-4 text-xs font-black disabled:opacity-40"
+              >
+                <Scale className="h-4 w-4" />
+                Add Balance
+              </button>
+
+              <button
+                type="button"
+                onClick={addLine}
+                className="flex h-11 items-center gap-2 rounded-2xl bg-[#10233b] px-5 text-xs font-black text-white"
+              >
+                <Plus className="h-4 w-4" />
+                Add Line
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1800px] border-collapse">
+              <thead className="bg-slate-50">
+                <tr>
+                  {[
+                    "#",
+                    "Account",
+                    "Description",
+                    "Debit",
+                    "Credit",
+                    "Department",
+                    "Cost Center",
+                    "Project",
+                    "Tax Code",
+                    "Actions",
+                  ].map((heading) => (
+                    <th
+                      key={heading}
+                      className="px-3 py-4 text-left text-[10px] font-black uppercase tracking-[0.12em] text-slate-400"
+                    >
+                      {heading}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-slate-100">
+                {lines.map(
+                  (line, index) => (
+                    <tr
+                      key={line.id}
+                      className="hover:bg-slate-50/70"
+                    >
+                      <td className="px-3 py-3">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-xs font-black">
+                          {index + 1}
+                        </span>
+                      </td>
+
+                      <td className="min-w-[260px] px-3 py-3 align-top">
+                        <select
+                          value={
+                            line.accountCode
+                          }
+                          onChange={(
+                            event,
+                          ) =>
+                            updateAccount(
+                              line.id,
+                              event
+                                .target
+                                .value,
+                            )
+                          }
+                          className={
+                            tableInputClassName
+                          }
+                        >
+                          <option value="">
+                            Select Account
+                          </option>
+
+                          {accounts.map(
+                            (
+                              account,
+                            ) => (
+                              <option
+                                key={
+                                  account.code
+                                }
+                                value={
+                                  account.code
+                                }
+                              >
+                                {
+                                  account.code
+                                }{" "}
+                                —{" "}
+                                {
+                                  account.name
+                                }
+                              </option>
+                            ),
+                          )}
+                        </select>
+
+                        {line.accountType && (
+                          <p className="mt-2 text-[11px] font-bold text-slate-500">
+                            {
+                              line.accountType
+                            }
+                          </p>
+                        )}
+                      </td>
+
+                      <td className="min-w-[220px] px-3 py-3">
+                        <input
+                          value={
+                            line.description
+                          }
+                          onChange={(
+                            event,
+                          ) =>
+                            updateLine(
+                              line.id,
+                              "description",
+                              event
+                                .target
+                                .value,
+                            )
+                          }
+                          placeholder="Narration..."
+                          className={
+                            tableInputClassName
+                          }
+                        />
+                      </td>
+
+                      <td className="min-w-[145px] px-3 py-3">
+                        <input
+                          inputMode="decimal"
+                          value={
+                            line.debit
+                          }
+                          onChange={(
+                            event,
+                          ) =>
+                            updateLine(
+                              line.id,
+                              "debit",
+                              event
+                                .target
+                                .value,
+                            )
+                          }
+                          placeholder="0.00"
+                          className={
+                            amountInputClassName
+                          }
+                        />
+                      </td>
+
+                      <td className="min-w-[145px] px-3 py-3">
+                        <input
+                          inputMode="decimal"
+                          value={
+                            line.credit
+                          }
+                          onChange={(
+                            event,
+                          ) =>
+                            updateLine(
+                              line.id,
+                              "credit",
+                              event
+                                .target
+                                .value,
+                            )
+                          }
+                          placeholder="0.00"
+                          className={
+                            amountInputClassName
+                          }
+                        />
+                      </td>
+
+                      <td className="min-w-[170px] px-3 py-3">
+                        <select
+                          value={
+                            line.department
+                          }
+                          onChange={(
+                            event,
+                          ) =>
+                            updateLine(
+                              line.id,
+                              "department",
+                              event
+                                .target
+                                .value,
+                            )
+                          }
+                          className={
+                            tableInputClassName
+                          }
+                        >
+                          <option value="">
+                            Select
+                          </option>
+
+                          {departments.map(
+                            (
+                              department,
+                            ) => (
+                              <option
+                                key={
+                                  department
+                                }
+                                value={
+                                  department
+                                }
+                              >
+                                {
+                                  department
+                                }
+                              </option>
+                            ),
+                          )}
+                        </select>
+                      </td>
+
+                      <td className="min-w-[170px] px-3 py-3">
+                        <select
+                          value={
+                            line.costCenter
+                          }
+                          onChange={(
+                            event,
+                          ) =>
+                            updateLine(
+                              line.id,
+                              "costCenter",
+                              event
+                                .target
+                                .value,
+                            )
+                          }
+                          className={
+                            tableInputClassName
+                          }
+                        >
+                          <option value="">
+                            Select
+                          </option>
+
+                          {costCenters.map(
+                            (
+                              costCenter,
+                            ) => (
+                              <option
+                                key={
+                                  costCenter
+                                }
+                                value={
+                                  costCenter
+                                }
+                              >
+                                {
+                                  costCenter
+                                }
+                              </option>
+                            ),
+                          )}
+                        </select>
+                      </td>
+
+                      <td className="min-w-[180px] px-3 py-3">
+                        <select
+                          value={
+                            line.project
+                          }
+                          onChange={(
+                            event,
+                          ) =>
+                            updateLine(
+                              line.id,
+                              "project",
+                              event
+                                .target
+                                .value,
+                            )
+                          }
+                          className={
+                            tableInputClassName
+                          }
+                        >
+                          {projects.map(
+                            (project) => (
+                              <option
+                                key={
+                                  project
+                                }
+                                value={
+                                  project
+                                }
+                              >
+                                {project}
+                              </option>
+                            ),
+                          )}
+                        </select>
+                      </td>
+
+                      <td className="min-w-[140px] px-3 py-3">
+                        <select
+                          value={
+                            line.taxCode
+                          }
+                          onChange={(
+                            event,
+                          ) =>
+                            updateLine(
+                              line.id,
+                              "taxCode",
+                              event
+                                .target
+                                .value,
+                            )
+                          }
+                          className={
+                            tableInputClassName
+                          }
+                        >
+                          {taxCodes.map(
+                            (taxCode) => (
+                              <option
+                                key={
+                                  taxCode
+                                }
+                                value={
+                                  taxCode
+                                }
+                              >
+                                {taxCode}
+                              </option>
+                            ),
+                          )}
+                        </select>
+                      </td>
+
+                      <td className="px-3 py-3">
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              duplicateLine(
+                                line.id,
+                              )
+                            }
+                            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 hover:bg-slate-100"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              removeLine(
+                                line.id,
+                              )
+                            }
+                            className="flex h-9 w-9 items-center justify-center rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ),
+                )}
+              </tbody>
+
+              <tfoot className="border-t-2 border-slate-200 bg-slate-50">
+                <tr>
+                  <td
+                    colSpan={3}
+                    className="px-4 py-5 text-right text-xs font-black uppercase text-slate-500"
+                  >
+                    Journal Totals
+                  </td>
+
+                  <td className="px-3 py-5 text-right text-sm font-black">
+                    {formatCurrency(
+                      totalDebit,
+                      form.currency,
+                    )}
+                  </td>
+
+                  <td className="px-3 py-5 text-right text-sm font-black">
+                    {formatCurrency(
+                      totalCredit,
+                      form.currency,
+                    )}
+                  </td>
+
+                  <td
+                    colSpan={5}
+                    className="px-4 py-5 text-right"
+                  >
+                    <span
+                      className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-black ${
+                        isBalanced
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-amber-100 text-amber-700"
+                      }`}
+                    >
+                      {isBalanced ? (
+                        <CheckCircle2 className="h-4 w-4" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4" />
+                      )}
+
+                      {isBalanced
+                        ? "Journal is balanced"
+                        : `Difference ${formatCurrency(
+                            difference,
+                            form.currency,
+                          )}`}
+                    </span>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-3">
+          <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex items-center gap-3">
+              <Paperclip className="h-5 w-5 text-violet-600" />
+
+              <h2 className="text-lg font-black">
+                Attachments
+              </h2>
+            </div>
+
+            <label className="mt-5 flex cursor-pointer flex-col items-center rounded-[24px] border-2 border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-center">
+              <Upload className="h-7 w-7 text-slate-400" />
+
+              <span className="mt-3 text-sm font-black">
+                Upload documents
+              </span>
+
+              <span className="mt-1 text-xs font-semibold text-slate-500">
+                PDF, image or spreadsheet
+              </span>
+
+              <input
+                type="file"
+                multiple
+                onChange={
+                  uploadFiles
+                }
+                className="hidden"
+              />
+            </label>
+
+            <div className="mt-4 space-y-3">
+              {attachments.length ===
+              0 ? (
+                <p className="rounded-2xl bg-slate-50 p-4 text-xs font-semibold text-slate-500">
+                  No attachments
+                  added.
+                </p>
+              ) : (
+                attachments.map(
+                  (
+                    attachment,
+                  ) => (
+                    <div
+                      key={
+                        attachment.id
+                      }
+                      className="flex items-center justify-between rounded-2xl border border-slate-200 p-4"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black">
+                          {
+                            attachment.name
+                          }
+                        </p>
+
+                        <p className="mt-1 text-xs font-semibold text-slate-500">
+                          {formatFileSize(
+                            attachment.size,
+                          )}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAttachments(
+                            (
+                              current,
+                            ) =>
+                              current.filter(
+                                (
+                                  item,
+                                ) =>
+                                  item.id !==
+                                  attachment.id,
+                              ),
+                          )
+                        }
+                        className="flex h-9 w-9 items-center justify-center rounded-xl text-rose-600 hover:bg-rose-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ),
+                )
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-black">
+              Validation
+            </h2>
+
+            <p className="mt-1 text-xs font-semibold text-slate-500">
+              Accounting controls
+              and journal readiness.
+            </p>
+
+            <div className="mt-5 space-y-3">
+              <ValidationRow
+                passed={hasDates}
+                title="Accounting dates"
+                description="Entry and posting dates are required."
+              />
+
+              <ValidationRow
+                passed={
+                  hasNarration
+                }
+                title="Narration"
+                description="A clear journal purpose is required."
+              />
+
+              <ValidationRow
+                passed={
+                  allLinesComplete
+                }
+                title="Complete lines"
+                description="Each line needs an account and one amount."
+              />
+
+              <ValidationRow
+                passed={isBalanced}
+                title="Balanced entry"
+                description="Total debit must equal total credit."
+              />
+            </div>
+          </div>
+
+          <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-black">
+              Workflow
+            </h2>
+
+            <p className="mt-1 text-xs font-semibold text-slate-500">
+              Journal lifecycle and
+              approval status.
+            </p>
+
+            <div className="mt-6 space-y-5">
+              {[
+                {
+                  label:
+                    "Journal prepared",
+                  description:
+                    "Entry is being created by Finance.",
+                  complete: true,
+                },
+                {
+                  label:
+                    form.approvalRequired
+                      ? "Approval review"
+                      : "Direct posting",
+                  description:
+                    form.approvalRequired
+                      ? "Finance approver review is required."
+                      : "Journal can be posted directly.",
+                  complete:
+                    form.status !==
+                    "Draft",
+                },
+                {
+                  label:
+                    "General ledger posting",
+                  description:
+                    "Entry becomes part of the general ledger.",
+                  complete:
+                    form.status ===
+                    "Posted",
+                },
+              ].map((step) => (
+                <div
+                  key={step.label}
+                  className="flex items-start gap-3"
+                >
+                  <div
+                    className={`flex h-9 w-9 items-center justify-center rounded-xl ${
+                      step.complete
+                        ? "bg-emerald-50 text-emerald-600"
+                        : "bg-slate-100 text-slate-400"
+                    }`}
+                  >
+                    {step.complete ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <CalendarDays className="h-4 w-4" />
+                    )}
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-black">
+                      {step.label}
+                    </p>
+
+                    <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+                      {
+                        step.description
+                      }
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div
+              className={`mt-6 rounded-2xl p-4 ${
+                readyToSubmit
+                  ? "bg-emerald-50"
+                  : "bg-amber-50"
+              }`}
+            >
+              <p
+                className={`text-sm font-black ${
+                  readyToSubmit
+                    ? "text-emerald-700"
+                    : "text-amber-700"
+                }`}
+              >
+                {readyToSubmit
+                  ? "Ready to submit"
+                  : "Action required"}
+              </p>
+
+              <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+                {readyToSubmit
+                  ? "All mandatory accounting validations have passed."
+                  : "Complete the validation requirements before submission."}
+              </p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
   );
 }
