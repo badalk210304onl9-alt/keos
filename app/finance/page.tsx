@@ -280,7 +280,7 @@ const financeModules = [
   {
     title: "Journal Entries",
     description: "Manual journals, adjustments and approval workflow",
-    href: "/finance/journals",
+    href: "/finance/journal-entries",
     icon: FileCheck2,
   },
   {
