@@ -202,7 +202,7 @@ const financeModules = [
   {
   title: "Financial Planning",
   description: "Forecasts, targets, scenarios and growth planning",
-  href: "/finance/financial-planning",
+  href: "/finance/planning",
   icon: LineChart,
 },
   {
