@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   ArrowDownRight,
   ArrowUpRight,
+  BadgeCheck,
   BadgeIndianRupee,
   Banknote,
   BarChart3,
@@ -210,7 +211,7 @@ const financeModules = [
   title: "Payroll Approval",
   description: "Review salary inputs and approve monthly payroll",
   href: "/finance/payroll-approval",
-  icon: WalletCards,
+  icon: BadgeCheck,
 },
 
 {
