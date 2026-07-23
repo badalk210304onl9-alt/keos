@@ -313,7 +313,7 @@ const financeModules = [
   {
     title: "Finance Audit Logs",
     description: "Track every finance action, approval and record change",
-    href: "/finance/audit",
+    href: "/finance/audit-logs",
     icon: BookOpenCheck,
   },
 ];
