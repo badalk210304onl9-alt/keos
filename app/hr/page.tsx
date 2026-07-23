@@ -1,72 +1,60 @@
 import Link from "next/link";
-import {
-  Users,
-  BriefcaseBusiness,
-  UserPlus,
-} from "lucide-react";
 
 const hrModules = [
-  {
-    title: "HR Dashboard",
-    description:
-      "People analytics, workforce health and HR alerts",
-    href: "/hr",
-    icon: "👥",
-  },
   {
     title: "Organization & Workforce",
     description:
       "Structure, positions, manpower planning and headcount",
     href: "/hr/organization-workforce",
-    icon: "💼",
+    icon: "OW",
   },
   {
     title: "Recruitment",
     description:
       "Job requisitions, vacancies and hiring pipeline",
     href: "/hr/recruitment",
-    icon: "👤",
+    icon: "RC",
   },
   {
     title: "Employee Directory",
     description:
       "Employee profiles, departments, roles and contact details",
     href: "/hr/employees",
-    icon: "👥",
+    icon: "ED",
   },
   {
     title: "Attendance & Leave",
     description:
       "Attendance records, leave requests and shift management",
     href: "/hr/attendance-leave",
-    icon: "🗓",
+    icon: "AL",
   },
   {
     title: "Payroll",
     description:
       "Salary processing, deductions, benefits and payslips",
     href: "/hr/payroll",
-    icon: "₹",
+    icon: "PY",
   },
   {
     title: "Performance Management",
     description:
       "Goals, appraisals, reviews and employee performance",
     href: "/hr/performance",
-    icon: "📈",
+    icon: "PM",
   },
 ];
 
-const alerts = [
-  {
-    title: "Open Positions",
-    value: "12",
-    note: "Across 6 departments",
-  },
+const summaryCards = [
   {
     title: "Total Employees",
     value: "148",
     note: "132 active employees",
+  },
+  {
+    title: "Open Positions",
+    value: "12",
+    note: "Across 6 departments",
   },
   {
     title: "Attendance Today",
@@ -80,40 +68,40 @@ const alerts = [
   },
 ];
 
-const departmentData = [
+const departments = [
   {
-    department: "Finance",
-    headcount: 24,
+    name: "Finance",
+    employees: 24,
     vacancies: 2,
     attendance: "96%",
   },
   {
-    department: "Marketing",
-    headcount: 31,
+    name: "Marketing",
+    employees: 31,
     vacancies: 3,
     attendance: "90%",
   },
   {
-    department: "Technology",
-    headcount: 36,
+    name: "Technology",
+    employees: 36,
     vacancies: 4,
     attendance: "94%",
   },
   {
-    department: "Operations",
-    headcount: 29,
+    name: "Operations",
+    employees: 29,
     vacancies: 2,
     attendance: "89%",
   },
   {
-    department: "Human Resources",
-    headcount: 12,
+    name: "Human Resources",
+    employees: 12,
     vacancies: 1,
     attendance: "100%",
   },
   {
-    department: "Customer Support",
-    headcount: 16,
+    name: "Customer Support",
+    employees: 16,
     vacancies: 0,
     attendance: "88%",
   },
@@ -140,30 +128,30 @@ export default function HRDashboardPage() {
             </div>
 
             <Link
-              href="/"
+              href="/dashboard"
               className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 px-5 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
             >
-              Back to KEOS
+              Back to Dashboard
             </Link>
           </div>
         </header>
 
         <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-          {alerts.map((item) => (
+          {summaryCards.map((card) => (
             <article
-              key={item.title}
+              key={card.title}
               className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
             >
               <p className="text-xs font-bold text-slate-500">
-                {item.title}
+                {card.title}
               </p>
 
               <p className="mt-3 text-3xl font-black text-[#102844]">
-                {item.value}
+                {card.value}
               </p>
 
               <p className="mt-2 text-xs text-slate-400">
-                {item.note}
+                {card.note}
               </p>
             </article>
           ))}
@@ -188,7 +176,7 @@ export default function HRDashboardPage() {
                 className="group rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-slate-300 hover:shadow-lg"
               >
                 <div className="flex items-start justify-between">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-xl">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-sm font-black text-[#102844]">
                     {module.icon}
                   </div>
 
@@ -239,25 +227,25 @@ export default function HRDashboardPage() {
                 </thead>
 
                 <tbody className="divide-y divide-slate-100">
-                  {departmentData.map((item) => (
+                  {departments.map((department) => (
                     <tr
-                      key={item.department}
-                      className="text-sm hover:bg-slate-50"
+                      key={department.name}
+                      className="text-sm transition hover:bg-slate-50"
                     >
                       <td className="px-6 py-5 font-black text-slate-800">
-                        {item.department}
+                        {department.name}
                       </td>
 
                       <td className="px-6 py-5 text-right font-bold">
-                        {item.headcount}
+                        {department.employees}
                       </td>
 
                       <td className="px-6 py-5 text-right font-bold text-amber-700">
-                        {item.vacancies}
+                        {department.vacancies}
                       </td>
 
                       <td className="px-6 py-5 text-right font-black text-emerald-700">
-                        {item.attendance}
+                        {department.attendance}
                       </td>
                     </tr>
                   ))}
