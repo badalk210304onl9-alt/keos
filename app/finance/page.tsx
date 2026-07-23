@@ -42,6 +42,7 @@ import {
   WalletCards,
 } from "lucide-react";
 
+
 const financeStats = [
   {
     title: "Revenue Today",
@@ -296,11 +297,12 @@ const financeModules = [
     icon: FileBarChart,
   },
   {
-    title: "Financial Analytics",
-    description: "Margins, trends, ratios, forecasts and performance",
-    href: "/finance/analytics",
-    icon: BarChart3,
-  },
+  title: "Financial Analytics",
+  description:
+    "Margins, trends, ratios, forecasts and performance",
+  href: "/finance/financial-analytics",
+  icon: BarChart3,
+},
   {
     title: "Finance Compliance",
     description: "Financial policies, controls and statutory compliance",
