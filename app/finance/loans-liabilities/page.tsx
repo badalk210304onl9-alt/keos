@@ -1,94 +1,95 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 
 import {
   ArrowLeft,
-  Building2,
-  CalendarDays,
-  CheckCircle2,
-  CircleDollarSign,
-  Clock3,
-  IndianRupee,
   Landmark,
-  Plus,
+  IndianRupee,
+  CalendarDays,
   Search,
+  Plus,
+  CheckCircle2,
+  AlertTriangle,
+  Clock3,
 } from "lucide-react";
 
-type LoanStatus = "Active" | "Closed" | "Overdue";
+type LoanStatus =
+  | "Active"
+  | "Closed"
+  | "Overdue";
 
-type LoanRecord = {
+type Loan = {
   id: number;
-  loanId: string;
+  loanNo: string;
   lender: string;
-  loanType: string;
+  type: string;
+  principal: number;
+  outstanding: number;
+  interest: number;
+  emi: number;
   startDate: string;
-  maturityDate: string;
-  principalAmount: number;
-  outstandingAmount: number;
-  interestRate: number;
-  monthlyEmi: number;
-  nextDueDate: string;
+  endDate: string;
+  nextDue: string;
   status: LoanStatus;
 };
 
-const initialLoans: LoanRecord[] = [
+const initialLoans: Loan[] = [
   {
     id: 1,
-    loanId: "LOAN-001",
+    loanNo: "LN-1001",
     lender: "HDFC Bank",
-    loanType: "Business Term Loan",
-    startDate: "2025-04-10",
-    maturityDate: "2030-04-10",
-    principalAmount: 5000000,
-    outstandingAmount: 3850000,
-    interestRate: 10.5,
-    monthlyEmi: 107500,
-    nextDueDate: "2026-08-05",
+    type: "Business Loan",
+    principal: 5000000,
+    outstanding: 3480000,
+    interest: 10.25,
+    emi: 107500,
+    startDate: "2025-04-15",
+    endDate: "2030-04-15",
+    nextDue: "2026-08-05",
     status: "Active",
   },
   {
     id: 2,
-    loanId: "LOAN-002",
+    loanNo: "LN-1002",
     lender: "ICICI Bank",
-    loanType: "Working Capital Loan",
-    startDate: "2025-09-01",
-    maturityDate: "2028-09-01",
-    principalAmount: 2500000,
-    outstandingAmount: 1920000,
-    interestRate: 11.25,
-    monthlyEmi: 82100,
-    nextDueDate: "2026-08-08",
+    type: "Working Capital",
+    principal: 2500000,
+    outstanding: 1760000,
+    interest: 11.2,
+    emi: 76400,
+    startDate: "2025-09-10",
+    endDate: "2028-09-10",
+    nextDue: "2026-08-10",
     status: "Active",
   },
   {
     id: 3,
-    loanId: "LOAN-003",
-    lender: "Tata Capital",
-    loanType: "Equipment Finance",
-    startDate: "2024-02-15",
-    maturityDate: "2027-02-15",
-    principalAmount: 1800000,
-    outstandingAmount: 620000,
-    interestRate: 12,
-    monthlyEmi: 59800,
-    nextDueDate: "2026-08-02",
+    loanNo: "LN-1003",
+    lender: "Axis Bank",
+    type: "Vehicle Loan",
+    principal: 950000,
+    outstanding: 120000,
+    interest: 9.5,
+    emi: 23800,
+    startDate: "2023-06-20",
+    endDate: "2027-06-20",
+    nextDue: "2026-08-03",
     status: "Overdue",
   },
   {
     id: 4,
-    loanId: "LOAN-004",
-    lender: "State Bank of India",
-    loanType: "Vehicle Loan",
-    startDate: "2022-06-20",
-    maturityDate: "2026-06-20",
-    principalAmount: 950000,
-    outstandingAmount: 0,
-    interestRate: 9.5,
-    monthlyEmi: 24500,
-    nextDueDate: "",
+    loanNo: "LN-1004",
+    lender: "SBI",
+    type: "Equipment Finance",
+    principal: 1800000,
+    outstanding: 0,
+    interest: 8.75,
+    emi: 45200,
+    startDate: "2022-03-01",
+    endDate: "2026-03-01",
+    nextDue: "-",
     status: "Closed",
   },
 ];
@@ -102,327 +103,448 @@ function formatCurrency(value: number) {
 }
 
 export default function LoansLiabilitiesPage() {
-  const [loans, setLoans] = useState<LoanRecord[]>(initialLoans);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [message, setMessage] = useState("");
 
-  const filteredLoans = useMemo(() => {
-    const query = search.toLowerCase();
+  const [loans, setLoans] =
+    useState(initialLoans);
+
+  const [search, setSearch] =
+    useState("");
+
+  const [filter, setFilter] =
+    useState("All");
+
+  const filtered = useMemo(() => {
 
     return loans.filter((loan) => {
-      const matchesSearch =
-        loan.lender.toLowerCase().includes(query) ||
-        loan.loanId.toLowerCase().includes(query) ||
-        loan.loanType.toLowerCase().includes(query);
 
-      const matchesStatus =
-        statusFilter === "All" || loan.status === statusFilter;
+      const matchSearch =
+        loan.loanNo.toLowerCase().includes(search.toLowerCase()) ||
+        loan.lender.toLowerCase().includes(search.toLowerCase());
 
-      return matchesSearch && matchesStatus;
+      const matchStatus =
+        filter === "All" ||
+        loan.status === filter;
+
+      return matchSearch && matchStatus;
+
     });
-  }, [loans, search, statusFilter]);
 
-  const totalPrincipal = loans.reduce(
-    (sum, loan) => sum + loan.principalAmount,
-    0,
-  );
+  }, [search, filter, loans]);
 
-  const totalOutstanding = loans.reduce(
-    (sum, loan) => sum + loan.outstandingAmount,
-    0,
-  );
-
-  const totalEmi = loans
-    .filter((loan) => loan.status !== "Closed")
-    .reduce((sum, loan) => sum + loan.monthlyEmi, 0);
-
-  const activeLoans = loans.filter(
-    (loan) => loan.status === "Active",
-  ).length;
-
-  function showMessage(text: string) {
-    setMessage(text);
-
-    window.setTimeout(() => {
-      setMessage("");
-    }, 2500);
-  }
-
-  function markPaid(id: number) {
-    setLoans((currentLoans) =>
-      currentLoans.map((loan) =>
-        loan.id === id
-          ? {
-              ...loan,
-              outstandingAmount: Math.max(
-                0,
-                loan.outstandingAmount - loan.monthlyEmi,
-              ),
-              status:
-                loan.outstandingAmount - loan.monthlyEmi <= 0
-                  ? "Closed"
-                  : "Active",
-            }
-          : loan,
-      ),
+  const totalLoan =
+    loans.reduce(
+      (sum, item) => sum + item.principal,
+      0
     );
 
-    showMessage("Loan repayment recorded successfully.");
+  const outstanding =
+    loans.reduce(
+      (sum, item) => sum + item.outstanding,
+      0
+    );
+
+  const monthlyEmi =
+    loans
+      .filter(x => x.status !== "Closed")
+      .reduce(
+        (sum, item) => sum + item.emi,
+        0
+      );
+
+  const activeLoans =
+    loans.filter(
+      x => x.status === "Active"
+    ).length;
+
+  function markPaid(id:number){
+
+      setLoans(current=>
+
+        current.map(item=>{
+
+          if(item.id!==id) return item;
+
+          const remaining =
+            Math.max(
+              0,
+              item.outstanding-item.emi
+            );
+
+          return{
+
+            ...item,
+
+            outstanding:remaining,
+
+            status:
+              remaining===0
+              ? "Closed"
+              :"Active"
+
+          }
+
+        })
+
+      )
+
   }
 
   return (
-    <main className="min-h-screen bg-[#f5f7fb] text-slate-900">
-      {message && (
-        <div className="fixed right-6 top-6 z-50 rounded-2xl border border-emerald-200 bg-white px-5 py-4 text-sm font-bold text-emerald-700 shadow-xl">
-          {message}
-        </div>
-      )}
 
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-6 py-5 lg:px-8">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/finance"
-              className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50"
-            >
-              <ArrowLeft size={20} />
-            </Link>
+<main className="min-h-screen bg-[#f5f7fb]">
 
-            <div>
-              <h1 className="text-2xl font-black text-slate-950">
-                Loans & Liabilities
-              </h1>
+<header className="border-b bg-white">
 
-              <p className="mt-1 text-sm text-slate-500">
-                Manage company borrowings, repayments and liabilities
-              </p>
-            </div>
-          </div>
+<div className="mx-auto max-w-[1600px] flex items-center justify-between px-8 py-5">
 
-          <button
-            type="button"
-            onClick={() => showMessage("New loan form will open here.")}
-            className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#102844] px-5 text-sm font-bold text-white"
+<div className="flex items-center gap-4">
+
+<Link
+href="/finance"
+className="h-11 w-11 flex items-center justify-center rounded-xl border">
+
+<ArrowLeft size={20}/>
+
+</Link>
+
+<div>
+
+<h1 className="text-3xl font-black">
+
+Loans & Liabilities
+
+</h1>
+
+<p className="text-slate-500">
+
+Manage company borrowings and liabilities
+
+</p>
+
+</div>
+
+</div>
+
+<button className="bg-[#102844] text-white px-5 h-11 rounded-xl flex items-center gap-2">
+
+<Plus size={17}/>
+
+Add Loan
+
+</button>
+
+</div>
+
+</header>
+
+<div className="max-w-[1600px] mx-auto p-8 space-y-6">
+
+<div className="grid xl:grid-cols-4 gap-5">
+
+<Card
+title="Total Borrowings"
+value={formatCurrency(totalLoan)}
+icon={<Landmark size={22}/>}
+/>
+
+<Card
+title="Outstanding"
+value={formatCurrency(outstanding)}
+icon={<IndianRupee size={22}/>}
+/>
+
+<Card
+title="Monthly EMI"
+value={formatCurrency(monthlyEmi)}
+icon={<CalendarDays size={22}/>}
+/>
+
+<Card
+title="Active Loans"
+value={String(activeLoans)}
+icon={<CheckCircle2 size={22}/>}
+/>
+
+</div>
+<section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+
+  <div className="flex flex-col gap-4 border-b border-slate-100 p-6 lg:flex-row lg:items-center lg:justify-between">
+
+    <div>
+      <h2 className="text-lg font-black text-slate-950">
+        Loan Register
+      </h2>
+
+      <p className="mt-1 text-sm text-slate-500">
+        Review outstanding balances, EMI schedules and repayment status
+      </p>
+    </div>
+
+    <div className="flex flex-col gap-3 sm:flex-row">
+
+      <div className="relative">
+
+        <Search
+          size={16}
+          className="pointer-events-none absolute left-3 top-3.5 text-slate-400"
+        />
+
+        <input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search lender or loan number"
+          className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm outline-none transition focus:border-slate-400 sm:w-72"
+        />
+
+      </div>
+
+      <select
+        value={filter}
+        onChange={(event) => setFilter(event.target.value)}
+        className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold outline-none"
+      >
+        <option value="All">All</option>
+        <option value="Active">Active</option>
+        <option value="Overdue">Overdue</option>
+        <option value="Closed">Closed</option>
+      </select>
+
+    </div>
+
+  </div>
+
+  <div className="overflow-x-auto">
+
+    <table className="w-full min-w-[1200px]">
+
+      <thead className="bg-slate-50">
+
+        <tr className="text-left text-[10px] font-black uppercase tracking-widest text-slate-500">
+
+          <th className="px-6 py-4">
+            Loan
+          </th>
+
+          <th className="px-6 py-4">
+            Lender
+          </th>
+
+          <th className="px-6 py-4">
+            Tenure
+          </th>
+
+          <th className="px-6 py-4 text-right">
+            Principal
+          </th>
+
+          <th className="px-6 py-4 text-right">
+            Outstanding
+          </th>
+
+          <th className="px-6 py-4 text-right">
+            Interest
+          </th>
+
+          <th className="px-6 py-4 text-right">
+            EMI
+          </th>
+
+          <th className="px-6 py-4">
+            Next Due
+          </th>
+
+          <th className="px-6 py-4">
+            Status
+          </th>
+
+          <th className="px-6 py-4 text-right">
+            Action
+          </th>
+
+        </tr>
+
+      </thead>
+
+      <tbody className="divide-y divide-slate-100">
+
+        {filtered.map((loan) => (
+
+          <tr
+            key={loan.id}
+            className="text-sm transition hover:bg-slate-50"
           >
-            <Plus size={17} />
-            Add Loan
-          </button>
-        </div>
-      </header>
 
-      <div className="mx-auto max-w-[1600px] space-y-6 px-6 py-6 lg:px-8">
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <SummaryCard
-            title="Total Borrowings"
-            value={formatCurrency(totalPrincipal)}
-            description="Original sanctioned loan value"
-            icon={<Landmark size={22} />}
-          />
+            <td className="px-6 py-5">
 
-          <SummaryCard
-            title="Outstanding Liability"
-            value={formatCurrency(totalOutstanding)}
-            description="Remaining amount payable"
-            icon={<IndianRupee size={22} />}
-          />
-
-          <SummaryCard
-            title="Monthly EMI"
-            value={formatCurrency(totalEmi)}
-            description="Current monthly repayment"
-            icon={<CircleDollarSign size={22} />}
-          />
-
-          <SummaryCard
-            title="Active Loans"
-            value={String(activeLoans)}
-            description="Currently active facilities"
-            icon={<CheckCircle2 size={22} />}
-          />
-        </section>
-
-        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-4 border-b border-slate-100 p-6 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h2 className="text-lg font-black text-slate-950">
-                Loan Register
-              </h2>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Review outstanding balances and repayment schedules
+              <p className="font-black text-slate-900">
+                {loan.type}
               </p>
-            </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <div className="relative">
-                <Search
-                  size={16}
-                  className="absolute left-3 top-3.5 text-slate-400"
-                />
+              <p className="mt-1 text-xs text-slate-400">
+                {loan.loanNo}
+              </p>
 
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search lender or loan"
-                  className="h-11 rounded-xl border border-slate-200 pl-10 pr-4 text-sm outline-none"
-                />
+            </td>
+
+            <td className="px-6 py-5 font-bold text-slate-700">
+              {loan.lender}
+            </td>
+
+            <td className="px-6 py-5">
+
+              <p className="font-semibold text-slate-700">
+                {loan.startDate}
+              </p>
+
+              <p className="mt-1 text-xs text-slate-400">
+                to {loan.endDate}
+              </p>
+
+            </td>
+
+            <td className="px-6 py-5 text-right font-bold text-slate-800">
+              {formatCurrency(loan.principal)}
+            </td>
+
+            <td className="px-6 py-5 text-right font-black text-[#102844]">
+              {formatCurrency(loan.outstanding)}
+            </td>
+
+            <td className="px-6 py-5 text-right font-semibold text-slate-700">
+              {loan.interest}%
+            </td>
+
+            <td className="px-6 py-5 text-right font-bold text-slate-800">
+              {formatCurrency(loan.emi)}
+            </td>
+
+            <td className="px-6 py-5">
+
+              <div className="flex items-center gap-2 text-slate-500">
+
+                <Clock3 size={15} />
+
+                {loan.nextDue}
+
               </div>
 
-              <select
-                value={statusFilter}
-                onChange={(event) =>
-                  setStatusFilter(event.target.value)
-                }
-                className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold outline-none"
-              >
-                <option>All</option>
-                <option>Active</option>
-                <option>Overdue</option>
-                <option>Closed</option>
-              </select>
-            </div>
-          </div>
+            </td>
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1200px]">
-              <thead className="bg-slate-50">
-                <tr className="text-left text-[10px] font-black uppercase tracking-widest text-slate-500">
-                  <th className="px-6 py-4">Loan</th>
-                  <th className="px-6 py-4">Lender</th>
-                  <th className="px-6 py-4">Maturity</th>
-                  <th className="px-6 py-4 text-right">Principal</th>
-                  <th className="px-6 py-4 text-right">
-                    Outstanding
-                  </th>
-                  <th className="px-6 py-4 text-right">Interest</th>
-                  <th className="px-6 py-4 text-right">Monthly EMI</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4 text-right">Action</th>
-                </tr>
-              </thead>
+            <td className="px-6 py-5">
+              <StatusBadge status={loan.status} />
+            </td>
 
-              <tbody className="divide-y divide-slate-100">
-                {filteredLoans.map((loan) => (
-                  <tr key={loan.id} className="text-sm">
-                    <td className="px-6 py-5">
-                      <p className="font-black text-slate-900">
-                        {loan.loanType}
-                      </p>
+            <td className="px-6 py-5 text-right">
 
-                      <p className="mt-1 text-xs text-slate-400">
-                        {loan.loanId}
-                      </p>
-                    </td>
+              {loan.status !== "Closed" ? (
 
-                    <td className="px-6 py-5">
-                      <div className="flex items-center gap-2">
-                        <Building2 size={16} className="text-slate-400" />
-                        <span className="font-bold text-slate-700">
-                          {loan.lender}
-                        </span>
-                      </div>
-                    </td>
+                <button
+                  type="button"
+                  onClick={() => markPaid(loan.id)}
+                  className="rounded-xl bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-700 transition hover:bg-emerald-100"
+                >
+                  Record Payment
+                </button>
 
-                    <td className="px-6 py-5">
-                      <div className="flex items-center gap-2 text-slate-500">
-                        <CalendarDays size={15} />
-                        {loan.maturityDate}
-                      </div>
-                    </td>
+              ) : (
 
-                    <td className="px-6 py-5 text-right font-bold">
-                      {formatCurrency(loan.principalAmount)}
-                    </td>
+                <span className="text-xs font-black text-emerald-700">
+                  Fully Repaid
+                </span>
 
-                    <td className="px-6 py-5 text-right font-black text-[#102844]">
-                      {formatCurrency(loan.outstandingAmount)}
-                    </td>
+              )}
 
-                    <td className="px-6 py-5 text-right">
-                      {loan.interestRate}%
-                    </td>
+            </td>
 
-                    <td className="px-6 py-5 text-right font-bold">
-                      {formatCurrency(loan.monthlyEmi)}
-                    </td>
+          </tr>
 
-                    <td className="px-6 py-5">
-                      <StatusBadge status={loan.status} />
-                    </td>
+        ))}
 
-                    <td className="px-6 py-5 text-right">
-                      {loan.status !== "Closed" ? (
-                        <button
-                          type="button"
-                          onClick={() => markPaid(loan.id)}
-                          className="rounded-xl bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-700 hover:bg-emerald-100"
-                        >
-                          Record Payment
-                        </button>
-                      ) : (
-                        <span className="text-xs font-black text-emerald-700">
-                          Repaid
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+        {filtered.length === 0 && (
 
-                {filteredLoans.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={9}
-                      className="px-6 py-16 text-center text-sm font-bold text-slate-400"
-                    >
-                      No loan records found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-    </main>
+          <tr>
+
+            <td
+              colSpan={10}
+              className="px-6 py-16 text-center"
+            >
+
+              <AlertTriangle
+                size={34}
+                className="mx-auto text-slate-300"
+              />
+
+              <p className="mt-4 font-black text-slate-700">
+                No loan records found
+              </p>
+
+              <p className="mt-1 text-sm text-slate-400">
+                Change the search term or status filter.
+              </p>
+
+            </td>
+
+          </tr>
+
+        )}
+
+      </tbody>
+
+    </table>
+
+  </div>
+
+</section>
+
+</div>
+
+</main>
+
   );
+
 }
 
-function SummaryCard({
+function Card({
   title,
   value,
-  description,
   icon,
 }: {
   title: string;
   value: string;
-  description: string;
-  icon: ReactNode;
+  icon: React.ReactNode;
 }) {
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+
       <div className="flex items-start justify-between gap-4">
+
         <div>
-          <p className="text-xs font-bold text-slate-500">{title}</p>
+
+          <p className="text-xs font-bold text-slate-500">
+            {title}
+          </p>
 
           <p className="mt-3 text-2xl font-black text-slate-950">
             {value}
           </p>
 
-          <p className="mt-2 text-xs text-slate-400">
-            {description}
-          </p>
         </div>
 
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-[#102844]">
           {icon}
         </div>
+
       </div>
+
     </div>
   );
 }
 
-function StatusBadge({ status }: { status: LoanStatus }) {
+function StatusBadge({
+  status,
+}: {
+  status: LoanStatus;
+}) {
   const className =
     status === "Active"
       ? "bg-blue-100 text-blue-700"
