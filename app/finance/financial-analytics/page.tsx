@@ -13,13 +13,9 @@ import {
   BrainCircuit,
   CheckCircle2,
   ChevronDown,
-  CircleDollarSign,
   Download,
-  FileSpreadsheet,
   IndianRupee,
-  LineChart,
   Percent,
-  PieChart,
   Printer,
   RefreshCw,
   ShieldCheck,
@@ -30,41 +26,9 @@ import {
   WalletCards,
 } from "lucide-react";
 
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Line,
-  LineChart as RechartsLineChart,
-  Pie,
-  PieChart as RechartsPieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-
 type Period = "6 Months" | "12 Months" | "Financial Year";
 
-type MetricTone =
-  | "positive"
-  | "negative"
-  | "neutral"
-  | "warning";
-
-type InsightType =
-  | "positive"
-  | "warning"
-  | "negative"
-  | "information";
-
-type RatioStatus = "Healthy" | "Watch" | "Strong";
-
-type RevenueRecord = {
+type MonthlyRecord = {
   month: string;
   revenue: number;
   expenses: number;
@@ -74,8 +38,10 @@ type RevenueRecord = {
 
 type ExpenseRecord = {
   name: string;
-  value: number;
+  percentage: number;
 };
+
+type RatioStatus = "Strong" | "Healthy" | "Review";
 
 type RatioRecord = {
   name: string;
@@ -84,14 +50,16 @@ type RatioRecord = {
   status: RatioStatus;
 };
 
+type InsightTone = "positive" | "warning" | "information";
+
 type InsightRecord = {
   id: number;
   title: string;
   description: string;
-  type: InsightType;
+  tone: InsightTone;
 };
 
-const twelveMonthData: RevenueRecord[] = [
+const monthlyData: MonthlyRecord[] = [
   {
     month: "Aug",
     revenue: 42,
@@ -179,12 +147,30 @@ const twelveMonthData: RevenueRecord[] = [
 ];
 
 const expenseData: ExpenseRecord[] = [
-  { name: "Inventory", value: 34 },
-  { name: "Payroll", value: 24 },
-  { name: "Marketing", value: 17 },
-  { name: "Operations", value: 13 },
-  { name: "Technology", value: 8 },
-  { name: "Administration", value: 4 },
+  {
+    name: "Inventory",
+    percentage: 34,
+  },
+  {
+    name: "Payroll",
+    percentage: 24,
+  },
+  {
+    name: "Marketing",
+    percentage: 17,
+  },
+  {
+    name: "Operations",
+    percentage: 13,
+  },
+  {
+    name: "Technology",
+    percentage: 8,
+  },
+  {
+    name: "Administration",
+    percentage: 4,
+  },
 ];
 
 const ratioData: RatioRecord[] = [
@@ -234,7 +220,7 @@ const ratioData: RatioRecord[] = [
     name: "Inventory Turnover",
     value: "4.2×",
     benchmark: "Target 5.00×",
-    status: "Watch",
+    status: "Review",
   },
 ];
 
@@ -243,47 +229,42 @@ const insightData: InsightRecord[] = [
     id: 1,
     title: "Revenue momentum is improving",
     description:
-      "Revenue increased for three consecutive months and is currently 14.7% above the quarterly average.",
-    type: "positive",
+      "Revenue has increased consistently during the latest reporting period.",
+    tone: "positive",
   },
   {
     id: 2,
     title: "Inventory cost requires attention",
     description:
-      "Inventory represents 34% of total operating expenses and turnover remains below the internal target.",
-    type: "warning",
+      "Inventory currently represents the largest share of operating expenses.",
+    tone: "warning",
   },
   {
     id: 3,
-    title: "Debt position remains manageable",
+    title: "Debt exposure remains controlled",
     description:
-      "The debt-to-equity ratio is 0.72 and interest coverage remains comfortably above the minimum benchmark.",
-    type: "information",
+      "Debt-to-equity and interest coverage ratios remain within healthy limits.",
+    tone: "information",
   },
   {
     id: 4,
     title: "Profit margin is above target",
     description:
-      "Net profit margin stands at 18.4%, exceeding the management target of 15%.",
-    type: "positive",
+      "Net profit margin is currently higher than the management target.",
+    tone: "positive",
   },
 ];
 
-const expenseColors = [
-  "#102844",
-  "#2563eb",
-  "#7c3aed",
-  "#db2777",
-  "#ea580c",
-  "#64748b",
-];
-
-function formatLakh(value: number): string {
-  return `₹${value.toFixed(1)}L`;
+function formatCrore(valueInLakh: number): string {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 2,
+  }).format(valueInLakh * 100000);
 }
 
-function formatCrore(value: number): string {
-  return `₹${value.toFixed(2)}Cr`;
+function formatLakh(value: number): string {
+  return `₹${value.toFixed(0)}L`;
 }
 
 export default function FinancialAnalyticsPage() {
@@ -291,33 +272,36 @@ export default function FinancialAnalyticsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [notification, setNotification] = useState("");
 
-  const chartData = useMemo(() => {
+  const visibleData = useMemo(() => {
     if (period === "6 Months") {
-      return twelveMonthData.slice(-6);
+      return monthlyData.slice(-6);
     }
 
-    return twelveMonthData;
+    return monthlyData;
   }, [period]);
 
-  const totalRevenue = useMemo(
-    () =>
-      chartData.reduce(
-        (total, record) => total + record.revenue,
-        0,
-      ),
-    [chartData],
-  );
+  const totalRevenue = useMemo(() => {
+    return visibleData.reduce(
+      (total, record) => total + record.revenue,
+      0,
+    );
+  }, [visibleData]);
 
-  const totalExpenses = useMemo(
-    () =>
-      chartData.reduce(
-        (total, record) => total + record.expenses,
-        0,
-      ),
-    [chartData],
-  );
+  const totalExpenses = useMemo(() => {
+    return visibleData.reduce(
+      (total, record) => total + record.expenses,
+      0,
+    );
+  }, [visibleData]);
 
   const totalProfit = totalRevenue - totalExpenses;
+
+  const totalCashFlow = useMemo(() => {
+    return visibleData.reduce(
+      (total, record) => total + record.cashFlow,
+      0,
+    );
+  }, [visibleData]);
 
   const netMargin =
     totalRevenue > 0
@@ -325,10 +309,11 @@ export default function FinancialAnalyticsPage() {
       : 0;
 
   const latestRevenue =
-    chartData[chartData.length - 1]?.revenue ?? 0;
+    visibleData[visibleData.length - 1]?.revenue ?? 0;
 
   const previousRevenue =
-    chartData[chartData.length - 2]?.revenue ?? latestRevenue;
+    visibleData[visibleData.length - 2]?.revenue ??
+    latestRevenue;
 
   const revenueGrowth =
     previousRevenue > 0
@@ -358,41 +343,49 @@ export default function FinancialAnalyticsPage() {
     window.print();
   }
 
-  function handleCsvExport(): void {
-    const header =
-      "Month,Revenue (Lakh),Expenses (Lakh),Profit (Lakh),Cash Flow (Lakh)";
+  function handleExport(): void {
+    const headings = [
+      "Month",
+      "Revenue (Lakh)",
+      "Expenses (Lakh)",
+      "Profit (Lakh)",
+      "Cash Flow (Lakh)",
+    ];
 
-    const rows = chartData.map((record) =>
-      [
-        record.month,
-        record.revenue,
-        record.expenses,
-        record.profit,
-        record.cashFlow,
-      ].join(","),
-    );
+    const rows = visibleData.map((record) => [
+      record.month,
+      String(record.revenue),
+      String(record.expenses),
+      String(record.profit),
+      String(record.cashFlow),
+    ]);
 
-    const csvContent = [header, ...rows].join("\n");
+    const csvContent = [headings, ...rows]
+      .map((row) => row.join(","))
+      .join("\n");
+
     const blob = new Blob([csvContent], {
       type: "text/csv;charset=utf-8",
     });
 
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
+    const fileUrl = URL.createObjectURL(blob);
+    const downloadLink = document.createElement("a");
 
-    anchor.href = url;
-    anchor.download = "keos-financial-analytics.csv";
+    downloadLink.href = fileUrl;
+    downloadLink.download =
+      "keos-financial-analytics.csv";
 
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
 
-    URL.revokeObjectURL(url);
-    showNotification("Analytics CSV exported successfully.");
+    URL.revokeObjectURL(fileUrl);
+
+    showNotification("Financial analytics exported.");
   }
 
   return (
-    <main className="min-h-screen bg-[#f4f7fb] text-slate-950">
+    <main className="min-h-screen bg-[#f5f7fb] text-slate-950">
       {notification ? (
         <div className="fixed right-5 top-5 z-[100] rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-bold text-[#102844] shadow-2xl">
           {notification}
@@ -423,7 +416,7 @@ export default function FinancialAnalyticsPage() {
               </div>
 
               <p className="mt-1 text-sm text-slate-500">
-                Margins, trends, ratios, forecasts and financial
+                Margins, trends, ratios, forecasts and
                 performance
               </p>
             </div>
@@ -436,12 +429,16 @@ export default function FinancialAnalyticsPage() {
                 onChange={(event) =>
                   setPeriod(event.target.value as Period)
                 }
-                className="h-11 appearance-none rounded-xl border border-slate-200 bg-white py-0 pl-4 pr-10 text-sm font-bold text-slate-700 outline-none transition focus:border-slate-400"
+                className="h-11 appearance-none rounded-xl border border-slate-200 bg-white py-0 pl-4 pr-10 text-sm font-bold text-slate-700 outline-none"
               >
-                <option value="6 Months">Last 6 Months</option>
+                <option value="6 Months">
+                  Last 6 Months
+                </option>
+
                 <option value="12 Months">
                   Last 12 Months
                 </option>
+
                 <option value="Financial Year">
                   Financial Year
                 </option>
@@ -456,28 +453,31 @@ export default function FinancialAnalyticsPage() {
             <button
               type="button"
               onClick={handleRefresh}
-              className="flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
             >
               <RefreshCw
                 size={16}
-                className={isRefreshing ? "animate-spin" : ""}
+                className={
+                  isRefreshing ? "animate-spin" : ""
+                }
               />
+
               Refresh
             </button>
 
             <button
               type="button"
-              onClick={handleCsvExport}
-              className="flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+              onClick={handleExport}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
             >
-              <FileSpreadsheet size={16} />
+              <Download size={16} />
               Export
             </button>
 
             <button
               type="button"
               onClick={handlePrint}
-              className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#102844] px-4 text-sm font-bold text-white transition hover:bg-[#17395f]"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#102844] px-4 text-sm font-bold text-white transition hover:bg-[#17395f]"
             >
               <Printer size={16} />
               Print
@@ -490,7 +490,7 @@ export default function FinancialAnalyticsPage() {
         <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard
             title="Total Revenue"
-            value={formatCrore(totalRevenue / 100)}
+            value={formatCrore(totalRevenue)}
             change={`+${revenueGrowth.toFixed(1)}%`}
             description="Compared with previous month"
             icon={<IndianRupee size={22} />}
@@ -499,7 +499,7 @@ export default function FinancialAnalyticsPage() {
 
           <MetricCard
             title="Operating Expenses"
-            value={formatCrore(totalExpenses / 100)}
+            value={formatCrore(totalExpenses)}
             change="+6.2%"
             description="Cost growth during selected period"
             icon={<WalletCards size={22} />}
@@ -508,7 +508,7 @@ export default function FinancialAnalyticsPage() {
 
           <MetricCard
             title="Net Profit"
-            value={formatCrore(totalProfit / 100)}
+            value={formatCrore(totalProfit)}
             change="+18.6%"
             description="Profit after operating expenses"
             icon={<TrendingUp size={22} />}
@@ -526,334 +526,89 @@ export default function FinancialAnalyticsPage() {
         </section>
 
         <section className="grid gap-6 xl:grid-cols-[1.7fr_1fr]">
-          <AnalyticsPanel
+          <Panel
             title="Revenue and Profit Trend"
-            description="Monthly revenue, operating expenses and net profit"
-            icon={<LineChart size={19} />}
+            description="Monthly revenue, expenses and profit"
+            icon={<BarChart3 size={19} />}
           >
-            <div className="h-[360px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={chartData}
-                  margin={{
-                    top: 15,
-                    right: 20,
-                    left: -15,
-                    bottom: 0,
-                  }}
-                >
-                  <defs>
-                    <linearGradient
-                      id="revenueGradient"
-                      x1="0"
-                      y1="0"
-                      x2="0"
-                      y2="1"
-                    >
-                      <stop
-                        offset="5%"
-                        stopColor="#102844"
-                        stopOpacity={0.25}
-                      />
-                      <stop
-                        offset="95%"
-                        stopColor="#102844"
-                        stopOpacity={0}
-                      />
-                    </linearGradient>
-                  </defs>
+            <TrendChart data={visibleData} />
+          </Panel>
 
-                  <CartesianGrid
-                    strokeDasharray="4 4"
-                    vertical={false}
-                    stroke="#e2e8f0"
-                  />
-
-                  <XAxis
-                    dataKey="month"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{
-                      fill: "#64748b",
-                      fontSize: 12,
-                    }}
-                  />
-
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{
-                      fill: "#64748b",
-                      fontSize: 12,
-                    }}
-                    tickFormatter={(value: number) =>
-                      `₹${value}L`
-                    }
-                  />
-
-                  <Tooltip content={<AnalyticsTooltip />} />
-
-                  <Legend
-                    wrapperStyle={{
-                      fontSize: "12px",
-                      paddingTop: "18px",
-                    }}
-                  />
-
-                  <Area
-                    type="monotone"
-                    dataKey="revenue"
-                    name="Revenue"
-                    stroke="#102844"
-                    strokeWidth={3}
-                    fill="url(#revenueGradient)"
-                  />
-
-                  <Line
-                    type="monotone"
-                    dataKey="expenses"
-                    name="Expenses"
-                    stroke="#dc2626"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-
-                  <Line
-                    type="monotone"
-                    dataKey="profit"
-                    name="Net Profit"
-                    stroke="#059669"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </AnalyticsPanel>
-
-          <AnalyticsPanel
+          <Panel
             title="Expense Distribution"
             description="Share of total operating expenses"
-            icon={<PieChart size={19} />}
+            icon={<WalletCards size={19} />}
           >
-            <div className="h-[270px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <RechartsPieChart>
-                  <Pie
-                    data={expenseData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={65}
-                    outerRadius={100}
-                    paddingAngle={3}
-                  >
-                    {expenseData.map((entry, index) => (
-                      <Cell
-                        key={entry.name}
-                        fill={
-                          expenseColors[
-                            index % expenseColors.length
-                          ]
-                        }
-                      />
-                    ))}
-                  </Pie>
-
-                  <Tooltip
-  formatter={(value) => [
-    `${Number(value ?? 0)}%`,
-    "Expense Share",
-  ]}
-/>
-                </RechartsPieChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              {expenseData.map((expense, index) => (
-                <div
+            <div className="space-y-5">
+              {expenseData.map((expense) => (
+                <ProgressItem
                   key={expense.name}
-                  className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2.5"
-                >
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span
-                      className="h-2.5 w-2.5 shrink-0 rounded-full"
-                      style={{
-                        backgroundColor:
-                          expenseColors[
-                            index % expenseColors.length
-                          ],
-                      }}
-                    />
-
-                    <span className="truncate text-xs font-semibold text-slate-600">
-                      {expense.name}
-                    </span>
-                  </div>
-
-                  <span className="text-xs font-black text-slate-900">
-                    {expense.value}%
-                  </span>
-                </div>
+                  label={expense.name}
+                  value={expense.percentage}
+                />
               ))}
             </div>
-          </AnalyticsPanel>
+          </Panel>
         </section>
 
         <section className="grid gap-6 xl:grid-cols-2">
-          <AnalyticsPanel
+          <Panel
             title="Monthly Cash Flow"
             description="Net cash generated from business activity"
-            icon={<CircleDollarSign size={19} />}
+            icon={<IndianRupee size={19} />}
           >
-            <div className="h-[310px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={chartData}
-                  margin={{
-                    top: 15,
-                    right: 10,
-                    left: -20,
-                    bottom: 0,
-                  }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="4 4"
-                    vertical={false}
-                    stroke="#e2e8f0"
-                  />
+            <CashFlowChart data={visibleData} />
+          </Panel>
 
-                  <XAxis
-                    dataKey="month"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{
-                      fill: "#64748b",
-                      fontSize: 12,
-                    }}
-                  />
-
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{
-                      fill: "#64748b",
-                      fontSize: 12,
-                    }}
-                    tickFormatter={(value: number) =>
-                      `₹${value}L`
-                    }
-                  />
-
-                  <Tooltip content={<AnalyticsTooltip />} />
-
-                  <Bar
-                    dataKey="cashFlow"
-                    name="Cash Flow"
-                    fill="#102844"
-                    radius={[8, 8, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </AnalyticsPanel>
-
-          <AnalyticsPanel
-            title="Revenue vs Forecast"
-            description="Actual performance against management forecast"
+          <Panel
+            title="Performance Summary"
+            description="Selected-period financial indicators"
             icon={<Target size={19} />}
           >
-            <div className="h-[310px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <RechartsLineChart
-                  data={chartData.map((item, index) => ({
-                    ...item,
-                    forecast:
-                      item.revenue *
-                      (index % 3 === 0 ? 1.05 : 0.97),
-                  }))}
-                  margin={{
-                    top: 15,
-                    right: 20,
-                    left: -15,
-                    bottom: 0,
-                  }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="4 4"
-                    vertical={false}
-                    stroke="#e2e8f0"
-                  />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <PerformanceBox
+                label="Total Revenue"
+                value={formatCrore(totalRevenue)}
+                note="Selected reporting period"
+              />
 
-                  <XAxis
-                    dataKey="month"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{
-                      fill: "#64748b",
-                      fontSize: 12,
-                    }}
-                  />
+              <PerformanceBox
+                label="Total Profit"
+                value={formatCrore(totalProfit)}
+                note={`${netMargin.toFixed(1)}% net margin`}
+              />
 
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{
-                      fill: "#64748b",
-                      fontSize: 12,
-                    }}
-                    tickFormatter={(value: number) =>
-                      `₹${value}L`
-                    }
-                  />
+              <PerformanceBox
+                label="Net Cash Flow"
+                value={formatCrore(totalCashFlow)}
+                note="Cash generated during period"
+              />
 
-                  <Tooltip content={<AnalyticsTooltip />} />
-
-                  <Legend
-                    wrapperStyle={{
-                      fontSize: "12px",
-                      paddingTop: "15px",
-                    }}
-                  />
-
-                  <Line
-                    type="monotone"
-                    dataKey="revenue"
-                    name="Actual Revenue"
-                    stroke="#102844"
-                    strokeWidth={3}
-                    dot={false}
-                  />
-
-                  <Line
-                    type="monotone"
-                    dataKey="forecast"
-                    name="Forecast"
-                    stroke="#f59e0b"
-                    strokeWidth={2}
-                    strokeDasharray="7 7"
-                    dot={false}
-                  />
-                </RechartsLineChart>
-              </ResponsiveContainer>
+              <PerformanceBox
+                label="Revenue Growth"
+                value={`${revenueGrowth.toFixed(1)}%`}
+                note="Latest month comparison"
+              />
             </div>
-          </AnalyticsPanel>
+          </Panel>
         </section>
 
         <section className="grid gap-6 xl:grid-cols-[1.35fr_1fr]">
-          <AnalyticsPanel
+          <Panel
             title="Financial Ratios"
-            description="Liquidity, profitability and leverage indicators"
+            description="Liquidity, profitability and leverage"
             icon={<BarChart3 size={19} />}
           >
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px]">
+              <table className="w-full min-w-[700px]">
                 <thead>
                   <tr className="border-b border-slate-100 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">
                     <th className="pb-4">Ratio</th>
-                    <th className="pb-4">Current Value</th>
+                    <th className="pb-4">Value</th>
                     <th className="pb-4">Benchmark</th>
-                    <th className="pb-4 text-right">Status</th>
+                    <th className="pb-4 text-right">
+                      Status
+                    </th>
                   </tr>
                 </thead>
 
@@ -873,18 +628,20 @@ export default function FinancialAnalyticsPage() {
                       </td>
 
                       <td className="py-4 text-right">
-                        <RatioBadge status={ratio.status} />
+                        <RatioBadge
+                          status={ratio.status}
+                        />
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </AnalyticsPanel>
+          </Panel>
 
-          <AnalyticsPanel
+          <Panel
             title="KEOS AI Insights"
-            description="Automated observations from financial performance"
+            description="Automated financial observations"
             icon={<BrainCircuit size={19} />}
           >
             <div className="space-y-3">
@@ -895,7 +652,7 @@ export default function FinancialAnalyticsPage() {
                 />
               ))}
             </div>
-          </AnalyticsPanel>
+          </Panel>
         </section>
 
         <section className="overflow-hidden rounded-3xl bg-[#102844] p-6 text-white shadow-xl sm:p-8">
@@ -910,8 +667,8 @@ export default function FinancialAnalyticsPage() {
               </h2>
 
               <p className="mt-2 max-w-lg text-sm leading-6 text-slate-300">
-                Estimated performance based on current revenue,
-                margin, expense and cash-flow patterns.
+                Estimated performance based on current
+                revenue, expense, profit and cash-flow trends.
               </p>
             </div>
 
@@ -944,36 +701,36 @@ export default function FinancialAnalyticsPage() {
         </section>
 
         <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-          <QuickStatusCard
+          <StatusCard
             title="Liquidity"
             value="Healthy"
             description="Current ratio is above benchmark"
             icon={<CheckCircle2 size={20} />}
-            status="positive"
+            tone="positive"
           />
 
-          <QuickStatusCard
+          <StatusCard
             title="Debt Exposure"
             value="Controlled"
             description="Debt-equity ratio remains below 1.00"
             icon={<ShieldCheck size={20} />}
-            status="positive"
+            tone="positive"
           />
 
-          <QuickStatusCard
+          <StatusCard
             title="Inventory Efficiency"
             value="Needs Review"
             description="Turnover is below management target"
             icon={<AlertTriangle size={20} />}
-            status="warning"
+            tone="warning"
           />
 
-          <QuickStatusCard
+          <StatusCard
             title="Profit Momentum"
             value="Improving"
             description="Net margin increased by 2.4%"
             icon={<ArrowUpRight size={20} />}
-            status="positive"
+            tone="positive"
           />
         </section>
       </div>
@@ -994,24 +751,20 @@ function MetricCard({
   change: string;
   description: string;
   icon: ReactNode;
-  tone: MetricTone;
+  tone: "positive" | "warning";
 }) {
-  const toneClass =
+  const changeClass =
     tone === "positive"
       ? "bg-emerald-50 text-emerald-700"
-      : tone === "negative"
-        ? "bg-rose-50 text-rose-700"
-        : tone === "warning"
-          ? "bg-amber-50 text-amber-700"
-          : "bg-slate-100 text-slate-700";
+      : "bg-amber-50 text-amber-700";
 
   const ChangeIcon =
-    tone === "negative" ? TrendingDown : TrendingUp;
+    tone === "positive" ? TrendingUp : TrendingDown;
 
   return (
     <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
+        <div>
           <p className="text-xs font-bold text-slate-500">
             {title}
           </p>
@@ -1028,7 +781,7 @@ function MetricCard({
 
       <div className="mt-5 flex items-center gap-2">
         <span
-          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-black ${toneClass}`}
+          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-black ${changeClass}`}
         >
           <ChangeIcon size={12} />
           {change}
@@ -1042,7 +795,7 @@ function MetricCard({
   );
 }
 
-function AnalyticsPanel({
+function Panel({
   title,
   description,
   icon,
@@ -1076,12 +829,199 @@ function AnalyticsPanel({
   );
 }
 
+function TrendChart({
+  data,
+}: {
+  data: MonthlyRecord[];
+}) {
+  const maxValue = Math.max(
+    ...data.map((record) => record.revenue),
+    1,
+  );
+
+  return (
+    <div>
+      <div className="flex h-[330px] items-end gap-3 overflow-x-auto border-b border-l border-slate-200 px-4 pb-0 pt-6">
+        {data.map((record) => {
+          const revenueHeight =
+            (record.revenue / maxValue) * 250;
+
+          const expenseHeight =
+            (record.expenses / maxValue) * 250;
+
+          const profitHeight =
+            (record.profit / maxValue) * 250;
+
+          return (
+            <div
+              key={record.month}
+              className="flex min-w-[58px] flex-1 flex-col items-center"
+            >
+              <div className="flex h-[260px] items-end gap-1">
+                <div
+                  title={`Revenue: ${formatLakh(
+                    record.revenue,
+                  )}`}
+                  className="w-3 rounded-t-md bg-[#102844]"
+                  style={{
+                    height: `${revenueHeight}px`,
+                  }}
+                />
+
+                <div
+                  title={`Expenses: ${formatLakh(
+                    record.expenses,
+                  )}`}
+                  className="w-3 rounded-t-md bg-rose-400"
+                  style={{
+                    height: `${expenseHeight}px`,
+                  }}
+                />
+
+                <div
+                  title={`Profit: ${formatLakh(
+                    record.profit,
+                  )}`}
+                  className="w-3 rounded-t-md bg-emerald-500"
+                  style={{
+                    height: `${profitHeight}px`,
+                  }}
+                />
+              </div>
+
+              <span className="mt-3 pb-3 text-[11px] font-bold text-slate-500">
+                {record.month}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-5 flex flex-wrap items-center gap-5">
+        <ChartLegend
+          className="bg-[#102844]"
+          label="Revenue"
+        />
+
+        <ChartLegend
+          className="bg-rose-400"
+          label="Expenses"
+        />
+
+        <ChartLegend
+          className="bg-emerald-500"
+          label="Profit"
+        />
+      </div>
+    </div>
+  );
+}
+
+function CashFlowChart({
+  data,
+}: {
+  data: MonthlyRecord[];
+}) {
+  const maxCashFlow = Math.max(
+    ...data.map((record) => record.cashFlow),
+    1,
+  );
+
+  return (
+    <div className="flex h-[310px] items-end gap-3 overflow-x-auto border-b border-l border-slate-200 px-4 pt-6">
+      {data.map((record) => {
+        const barHeight =
+          (record.cashFlow / maxCashFlow) * 230;
+
+        return (
+          <div
+            key={record.month}
+            className="flex min-w-[45px] flex-1 flex-col items-center"
+          >
+            <span className="mb-2 text-[10px] font-black text-slate-500">
+              ₹{record.cashFlow}L
+            </span>
+
+            <div
+              className="w-full max-w-9 rounded-t-lg bg-[#102844]"
+              style={{
+                height: `${barHeight}px`,
+              }}
+            />
+
+            <span className="mt-3 pb-3 text-[11px] font-bold text-slate-500">
+              {record.month}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ProgressItem({
+  label,
+  value,
+}: {
+  label: string;
+  value: number;
+}) {
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between gap-4">
+        <span className="text-sm font-bold text-slate-700">
+          {label}
+        </span>
+
+        <span className="text-sm font-black text-[#102844]">
+          {value}%
+        </span>
+      </div>
+
+      <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+        <div
+          className="h-full rounded-full bg-[#102844]"
+          style={{
+            width: `${value}%`,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function PerformanceBox({
+  label,
+  value,
+  note,
+}: {
+  label: string;
+  value: string;
+  note: string;
+}) {
+  return (
+    <article className="rounded-2xl border border-slate-100 bg-slate-50 p-5">
+      <p className="text-xs font-bold text-slate-500">
+        {label}
+      </p>
+
+      <p className="mt-3 text-xl font-black text-slate-950">
+        {value}
+      </p>
+
+      <p className="mt-2 text-xs text-slate-400">
+        {note}
+      </p>
+    </article>
+  );
+}
+
 function RatioBadge({
   status,
 }: {
   status: RatioStatus;
 }) {
-  const className =
+  const badgeClass =
     status === "Strong"
       ? "bg-emerald-100 text-emerald-700"
       : status === "Healthy"
@@ -1090,7 +1030,7 @@ function RatioBadge({
 
   return (
     <span
-      className={`inline-flex rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider ${className}`}
+      className={`inline-flex rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider ${badgeClass}`}
     >
       {status}
     </span>
@@ -1102,40 +1042,36 @@ function InsightCard({
 }: {
   insight: InsightRecord;
 }) {
-  const styles =
-    insight.type === "positive"
+  const configuration =
+    insight.tone === "positive"
       ? {
-          container: "border-emerald-100 bg-emerald-50",
+          container:
+            "border-emerald-100 bg-emerald-50",
           icon: "bg-emerald-100 text-emerald-700",
           element: <TrendingUp size={16} />,
         }
-      : insight.type === "warning"
+      : insight.tone === "warning"
         ? {
-            container: "border-amber-100 bg-amber-50",
+            container:
+              "border-amber-100 bg-amber-50",
             icon: "bg-amber-100 text-amber-700",
             element: <AlertTriangle size={16} />,
           }
-        : insight.type === "negative"
-          ? {
-              container: "border-rose-100 bg-rose-50",
-              icon: "bg-rose-100 text-rose-700",
-              element: <TrendingDown size={16} />,
-            }
-          : {
-              container: "border-blue-100 bg-blue-50",
-              icon: "bg-blue-100 text-blue-700",
-              element: <Activity size={16} />,
-            };
+        : {
+            container: "border-blue-100 bg-blue-50",
+            icon: "bg-blue-100 text-blue-700",
+            element: <Activity size={16} />,
+          };
 
   return (
     <article
-      className={`rounded-2xl border p-4 ${styles.container}`}
+      className={`rounded-2xl border p-4 ${configuration.container}`}
     >
       <div className="flex items-start gap-3">
         <div
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${styles.icon}`}
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${configuration.icon}`}
         >
-          {styles.element}
+          {configuration.element}
         </div>
 
         <div>
@@ -1162,7 +1098,7 @@ function ForecastCard({
   note: string;
 }) {
   return (
-    <article className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur">
+    <article className="rounded-2xl border border-white/10 bg-white/10 p-4">
       <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">
         {label}
       </p>
@@ -1171,26 +1107,28 @@ function ForecastCard({
         {value}
       </p>
 
-      <p className="mt-2 text-xs text-slate-300">{note}</p>
+      <p className="mt-2 text-xs text-slate-300">
+        {note}
+      </p>
     </article>
   );
 }
 
-function QuickStatusCard({
+function StatusCard({
   title,
   value,
   description,
   icon,
-  status,
+  tone,
 }: {
   title: string;
   value: string;
   description: string;
   icon: ReactNode;
-  status: "positive" | "warning";
+  tone: "positive" | "warning";
 }) {
   const iconClass =
-    status === "positive"
+    tone === "positive"
       ? "bg-emerald-50 text-emerald-700"
       : "bg-amber-50 text-amber-700";
 
@@ -1217,47 +1155,22 @@ function QuickStatusCard({
   );
 }
 
-function AnalyticsTooltip({
-  active,
-  payload,
+function ChartLegend({
   label,
+  className,
 }: {
-  active?: boolean;
-  payload?: Array<{
-    name?: string;
-    value?: number | string;
-    color?: string;
-  }>;
-  label?: string;
+  label: string;
+  className: string;
 }) {
-  if (!active || !payload?.length) {
-    return null;
-  }
-
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
-      <p className="mb-2 text-xs font-black text-slate-900">
+    <div className="flex items-center gap-2">
+      <span
+        className={`h-2.5 w-2.5 rounded-full ${className}`}
+      />
+
+      <span className="text-xs font-bold text-slate-500">
         {label}
-      </p>
-
-      <div className="space-y-1.5">
-        {payload.map((item) => (
-          <div
-            key={`${item.name}-${String(item.value)}`}
-            className="flex items-center justify-between gap-6"
-          >
-            <span className="text-xs text-slate-500">
-              {item.name}
-            </span>
-
-            <span className="text-xs font-black text-slate-900">
-              {typeof item.value === "number"
-                ? formatLakh(item.value)
-                : String(item.value)}
-            </span>
-          </div>
-        ))}
-      </div>
+      </span>
     </div>
   );
 }
