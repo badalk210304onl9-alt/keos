@@ -1,22 +1,17 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import Link from "next/link";
-
 import {
   ArrowLeft,
-  BadgeCheck,
-  CalendarDays,
   CheckCircle2,
   Clock3,
-  Download,
   FileSpreadsheet,
   IndianRupee,
   Search,
 } from "lucide-react";
 
-type TDSStatus = "Deducted" | "Deposited" | "Pending" | "Filed";
+type TDSStatus = "Pending" | "Deducted" | "Deposited" | "Filed";
 
 type TDSRecord = {
   id: number;
@@ -92,9 +87,9 @@ export default function TDSManagementPage() {
   const [message, setMessage] = useState("");
 
   const filteredRecords = useMemo(() => {
-    return records.filter((record) => {
-      const query = search.toLowerCase();
+    const query = search.trim().toLowerCase();
 
+    return records.filter((record) => {
       const matchesSearch =
         record.deductee.toLowerCase().includes(query) ||
         record.pan.toLowerCase().includes(query) ||
@@ -107,18 +102,21 @@ export default function TDSManagementPage() {
     });
   }, [records, search, statusFilter]);
 
-  const totalTDS = records.reduce(
-    (sum, record) => sum + record.tdsAmount,
-    0,
+  const totalTDS = useMemo(
+    () => records.reduce((sum, record) => sum + record.tdsAmount, 0),
+    [records],
   );
 
-  const depositedTDS = records
-    .filter(
-      (record) =>
-        record.status === "Deposited" ||
-        record.status === "Filed",
-    )
-    .reduce((sum, record) => sum + record.tdsAmount, 0);
+  const depositedTDS = useMemo(
+    () =>
+      records
+        .filter(
+          (record) =>
+            record.status === "Deposited" || record.status === "Filed",
+        )
+        .reduce((sum, record) => sum + record.tdsAmount, 0),
+    [records],
+  );
 
   const pendingTDS = totalTDS - depositedTDS;
 
@@ -149,36 +147,24 @@ export default function TDSManagementPage() {
       )}
 
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-6 py-5 lg:px-8">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/finance"
-              className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50"
-            >
-              <ArrowLeft size={20} />
-            </Link>
-
-            <div>
-              <h1 className="text-2xl font-black text-slate-950">
-                TDS Management
-              </h1>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Manage deductions, deposits, certificates and returns
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() =>
-              showMessage("TDS report prepared successfully.")
-            }
-            className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#102844] px-5 text-sm font-bold text-white"
+        <div className="mx-auto flex max-w-[1600px] items-center gap-4 px-6 py-5 lg:px-8">
+          <Link
+            href="/finance"
+            className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50"
+            aria-label="Back to finance"
           >
-            <Download size={17} />
-            Export Report
-          </button>
+            <ArrowLeft size={20} />
+          </Link>
+
+          <div>
+            <h1 className="text-2xl font-black text-slate-950">
+              TDS Management
+            </h1>
+
+            <p className="mt-1 text-sm text-slate-500">
+              TDS deductions, deposits, filing records and certificates
+            </p>
+          </div>
         </div>
       </header>
 
@@ -199,7 +185,7 @@ export default function TDSManagementPage() {
           />
 
           <SummaryCard
-            title="Pending Deposit"
+            title="Pending TDS"
             value={formatCurrency(pendingTDS)}
             description="Awaiting deposit or filing"
             icon={<Clock3 size={22} />}
@@ -208,7 +194,7 @@ export default function TDSManagementPage() {
           <SummaryCard
             title="Total Records"
             value={String(records.length)}
-            description="Deduction transactions"
+            description="TDS transaction records"
             icon={<FileSpreadsheet size={22} />}
           />
         </section>
@@ -221,7 +207,7 @@ export default function TDSManagementPage() {
               </h2>
 
               <p className="mt-1 text-sm text-slate-500">
-                Review deduction and filing status
+                Review deduction, deposit and filing status
               </p>
             </div>
 
@@ -229,29 +215,27 @@ export default function TDSManagementPage() {
               <div className="relative">
                 <Search
                   size={16}
-                  className="absolute left-3 top-3.5 text-slate-400"
+                  className="pointer-events-none absolute left-3 top-3.5 text-slate-400"
                 />
 
                 <input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Search deductee, PAN or section"
-                  className="h-11 w-full rounded-xl border border-slate-200 pl-10 pr-4 text-sm outline-none sm:w-72"
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm outline-none transition focus:border-slate-400 sm:w-72"
                 />
               </div>
 
               <select
                 value={statusFilter}
-                onChange={(event) =>
-                  setStatusFilter(event.target.value)
-                }
+                onChange={(event) => setStatusFilter(event.target.value)}
                 className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold outline-none"
               >
-                <option>All</option>
-                <option>Deducted</option>
-                <option>Deposited</option>
-                <option>Pending</option>
-                <option>Filed</option>
+                <option value="All">All</option>
+                <option value="Pending">Pending</option>
+                <option value="Deducted">Deducted</option>
+                <option value="Deposited">Deposited</option>
+                <option value="Filed">Filed</option>
               </select>
             </div>
           </div>
@@ -273,11 +257,15 @@ export default function TDSManagementPage() {
 
               <tbody className="divide-y divide-slate-100">
                 {filteredRecords.map((record) => (
-                  <tr key={record.id} className="text-sm">
+                  <tr
+                    key={record.id}
+                    className="text-sm transition hover:bg-slate-50"
+                  >
                     <td className="px-6 py-5">
                       <p className="font-black text-slate-900">
                         {record.deductee}
                       </p>
+
                       <p className="mt-1 text-xs text-slate-400">
                         PAN: {record.pan}
                       </p>
@@ -287,18 +275,15 @@ export default function TDSManagementPage() {
                       {record.section}
                     </td>
 
-                    <td className="px-6 py-5">
-                      <div className="flex items-center gap-2 text-slate-500">
-                        <CalendarDays size={15} />
-                        {record.paymentDate}
-                      </div>
+                    <td className="px-6 py-5 text-slate-500">
+                      {record.paymentDate}
                     </td>
 
-                    <td className="px-6 py-5 text-right font-bold">
+                    <td className="px-6 py-5 text-right font-bold text-slate-800">
                       {formatCurrency(record.grossAmount)}
                     </td>
 
-                    <td className="px-6 py-5 text-right">
+                    <td className="px-6 py-5 text-right text-slate-600">
                       {record.rate}%
                     </td>
 
@@ -317,17 +302,15 @@ export default function TDSManagementPage() {
                           onClick={() =>
                             updateStatus(record.id, "Deposited")
                           }
-                          className="rounded-xl bg-blue-50 px-3 py-2 text-xs font-black text-blue-700"
+                          className="rounded-xl bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 transition hover:bg-blue-100"
                         >
                           Deposit
                         </button>
 
                         <button
                           type="button"
-                          onClick={() =>
-                            updateStatus(record.id, "Filed")
-                          }
-                          className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700"
+                          onClick={() => updateStatus(record.id, "Filed")}
+                          className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700 transition hover:bg-emerald-100"
                         >
                           File
                         </button>
@@ -364,22 +347,24 @@ function SummaryCard({
   title: string;
   value: string;
   description: string;
-  icon: ReactNode;
+  icon: React.ReactNode;
 }) {
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-bold text-slate-500">{title}</p>
+
           <p className="mt-3 text-2xl font-black text-slate-950">
             {value}
           </p>
+
           <p className="mt-2 text-xs text-slate-400">
             {description}
           </p>
         </div>
 
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-[#102844]">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-[#102844]">
           {icon}
         </div>
       </div>
@@ -388,7 +373,7 @@ function SummaryCard({
 }
 
 function StatusBadge({ status }: { status: TDSStatus }) {
-  const style =
+  const className =
     status === "Filed"
       ? "bg-emerald-100 text-emerald-700"
       : status === "Deposited"
@@ -399,7 +384,7 @@ function StatusBadge({ status }: { status: TDSStatus }) {
 
   return (
     <span
-      className={`rounded-full px-3 py-1 text-[11px] font-black ${style}`}
+      className={`inline-flex rounded-full px-3 py-1 text-[11px] font-black ${className}`}
     >
       {status}
     </span>
