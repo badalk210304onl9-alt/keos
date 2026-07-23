@@ -304,11 +304,12 @@ const financeModules = [
   icon: BarChart3,
 },
   {
-    title: "Finance Compliance",
-    description: "Financial policies, controls and statutory compliance",
-    href: "/finance/compliance",
-    icon: ShieldCheck,
-  },
+  title: "Finance Compliance",
+  description:
+    "Financial policies, controls and statutory compliance",
+  href: "/finance/compliance",
+  icon: ShieldCheck,
+},
   {
     title: "Finance Audit Logs",
     description: "Track every finance action, approval and record change",
