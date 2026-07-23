@@ -216,9 +216,10 @@ const financeModules = [
 
 {
   title: "Employee Reimbursements",
-  description: "Travel, business and employee expense reimbursements",
+  description:
+    "Submit, review and approve employee expense claims",
   href: "/finance/reimbursements",
-  icon: Receipt,
+  icon: ReceiptText,
 },
 
 {
